@@ -98,9 +98,15 @@ export async function sendPoolMessage(
     try {
       await poolApis[idx].setMyName(sender);
       await new Promise((r) => setTimeout(r, 2000));
-      logger.info({ sender, groupFolder, poolIndex: idx }, 'Assigned and renamed pool bot');
+      logger.info(
+        { sender, groupFolder, poolIndex: idx },
+        'Assigned and renamed pool bot',
+      );
     } catch (err) {
-      logger.warn({ sender, err }, 'Failed to rename pool bot (sending anyway)');
+      logger.warn(
+        { sender, err },
+        'Failed to rename pool bot (sending anyway)',
+      );
     }
   }
 
@@ -109,13 +115,16 @@ export async function sendPoolMessage(
     const numericId = chatId.replace(/^tg:/, '');
     const MAX_LENGTH = 4096;
     if (text.length <= MAX_LENGTH) {
-      await api.sendMessage(numericId, text);
+      await sendTelegramMessage(api, numericId, text);
     } else {
       for (let i = 0; i < text.length; i += MAX_LENGTH) {
-        await api.sendMessage(numericId, text.slice(i, i + MAX_LENGTH));
+        await sendTelegramMessage(api, numericId, text.slice(i, i + MAX_LENGTH));
       }
     }
-    logger.info({ chatId, sender, poolIndex: idx, length: text.length }, 'Pool message sent');
+    logger.info(
+      { chatId, sender, poolIndex: idx, length: text.length },
+      'Pool message sent',
+    );
   } catch (err) {
     logger.error({ chatId, sender, err }, 'Failed to send pool message');
   }
@@ -293,12 +302,14 @@ export class TelegramChannel implements Channel {
 
         // Download the image
         const buffer = await new Promise<Buffer>((resolve, reject) => {
-          https.get(fileUrl, (res) => {
-            const chunks: Buffer[] = [];
-            res.on('data', (chunk) => chunks.push(chunk));
-            res.on('end', () => resolve(Buffer.concat(chunks)));
-            res.on('error', reject);
-          }).on('error', reject);
+          https
+            .get(fileUrl, (res) => {
+              const chunks: Buffer[] = [];
+              res.on('data', (chunk) => chunks.push(chunk));
+              res.on('end', () => resolve(Buffer.concat(chunks)));
+              res.on('error', reject);
+            })
+            .on('error', reject);
         });
 
         const groupDir = resolveGroupFolderPath(group.folder);
@@ -307,10 +318,18 @@ export class TelegramChannel implements Channel {
 
         if (processed) {
           const timestamp = new Date(ctx.message.date * 1000).toISOString();
-          const senderName = ctx.from?.first_name || ctx.from?.username || 'Unknown';
-          const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+          const senderName =
+            ctx.from?.first_name || ctx.from?.username || 'Unknown';
+          const isGroup =
+            ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
 
-          this.opts.onChatMetadata(chatJid, timestamp, undefined, 'telegram', isGroup);
+          this.opts.onChatMetadata(
+            chatJid,
+            timestamp,
+            undefined,
+            'telegram',
+            isGroup,
+          );
           this.opts.onMessage(chatJid, {
             id: ctx.message.message_id.toString(),
             chat_jid: chatJid,
@@ -320,7 +339,10 @@ export class TelegramChannel implements Channel {
             timestamp,
             is_from_me: false,
           });
-          logger.info({ chatJid, image: processed.relativePath }, 'Telegram image processed');
+          logger.info(
+            { chatJid, image: processed.relativePath },
+            'Telegram image processed',
+          );
         }
       } catch (err) {
         logger.error({ chatJid, err }, 'Failed to process Telegram image');
