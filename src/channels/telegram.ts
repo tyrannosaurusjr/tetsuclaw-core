@@ -1,4 +1,6 @@
+import fs from 'fs';
 import https from 'https';
+import path from 'path';
 import { Api, Bot } from 'grammy';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
@@ -416,9 +418,71 @@ export class TelegramChannel implements Channel {
       }
     });
     this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
-    this.bot.on('message:document', (ctx) => {
-      const name = ctx.message.document?.file_name || 'file';
-      storeNonText(ctx, `[Document: ${name}]`);
+    this.bot.on('message:document', async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = this.opts.registeredGroups()[chatJid];
+      if (!group) return;
+
+      const doc = ctx.message.document;
+      const displayName = doc?.file_name || 'file';
+      const isPdf =
+        doc?.mime_type === 'application/pdf' ||
+        displayName.toLowerCase().endsWith('.pdf');
+
+      if (!isPdf) {
+        storeNonText(ctx, `[Document: ${displayName}]`);
+        return;
+      }
+
+      try {
+        const file = await ctx.api.getFile(doc.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${this.botToken}/${file.file_path}`;
+
+        const buffer = await new Promise<Buffer>((resolve, reject) => {
+          https
+            .get(fileUrl, (res) => {
+              const chunks: Buffer[] = [];
+              res.on('data', (chunk) => chunks.push(chunk));
+              res.on('end', () => resolve(Buffer.concat(chunks)));
+              res.on('error', reject);
+            })
+            .on('error', reject);
+        });
+
+        const groupDir = resolveGroupFolderPath(group.folder);
+        const attachDir = path.join(groupDir, 'attachments');
+        fs.mkdirSync(attachDir, { recursive: true });
+        const safeName = path.basename(
+          doc?.file_name || `doc-${Date.now()}.pdf`,
+        );
+        const filePath = path.join(attachDir, safeName);
+        fs.writeFileSync(filePath, buffer);
+
+        const sizeKB = Math.round(buffer.length / 1024);
+        const caption = ctx.message.caption || '';
+        const pdfRef = `[PDF: attachments/${safeName} (${sizeKB}KB)]\nUse: pdf-reader extract attachments/${safeName}`;
+        const content = caption ? `${caption}\n\n${pdfRef}` : pdfRef;
+
+        logger.info({ chatJid, filename: safeName }, 'Downloaded Telegram PDF');
+
+        const timestamp = new Date(ctx.message.date * 1000).toISOString();
+        const senderName = ctx.from?.first_name || ctx.from?.username || 'Unknown';
+        const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+
+        this.opts.onChatMetadata(chatJid, timestamp, undefined, 'telegram', isGroup);
+        this.opts.onMessage(chatJid, {
+          id: ctx.message.message_id.toString(),
+          chat_jid: chatJid,
+          sender: ctx.from?.id?.toString() || '',
+          sender_name: senderName,
+          content,
+          timestamp,
+          is_from_me: false,
+        });
+      } catch (err) {
+        logger.error({ chatJid, err }, 'Failed to download Telegram PDF');
+        storeNonText(ctx, `[Document: ${displayName}]`);
+      }
     });
     this.bot.on('message:sticker', (ctx) => {
       const emoji = ctx.message.sticker?.emoji || '';
