@@ -96,3 +96,11 @@ export async function transcribeAudioMessage(
 export function isVoiceMessage(msg: WAMessage): boolean {
   return msg.message?.audioMessage?.ptt === true;
 }
+
+/**
+ * Transcribe a raw audio buffer (OGG, MP3, etc.) using OpenAI Whisper.
+ * Used by channels that download audio themselves (e.g. Telegram).
+ */
+export async function transcribeBuffer(buffer: Buffer): Promise<string | null> {
+  return transcribeWithOpenAI(buffer, DEFAULT_CONFIG);
+}
