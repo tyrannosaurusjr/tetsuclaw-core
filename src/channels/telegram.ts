@@ -466,10 +466,18 @@ export class TelegramChannel implements Channel {
         logger.info({ chatJid, filename: safeName }, 'Downloaded Telegram PDF');
 
         const timestamp = new Date(ctx.message.date * 1000).toISOString();
-        const senderName = ctx.from?.first_name || ctx.from?.username || 'Unknown';
-        const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+        const senderName =
+          ctx.from?.first_name || ctx.from?.username || 'Unknown';
+        const isGroup =
+          ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
 
-        this.opts.onChatMetadata(chatJid, timestamp, undefined, 'telegram', isGroup);
+        this.opts.onChatMetadata(
+          chatJid,
+          timestamp,
+          undefined,
+          'telegram',
+          isGroup,
+        );
         this.opts.onMessage(chatJid, {
           id: ctx.message.message_id.toString(),
           chat_jid: chatJid,
