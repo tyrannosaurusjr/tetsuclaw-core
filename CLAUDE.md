@@ -1,80 +1,318 @@
-# NanoClaw
+# CLAUDE.md — Tetsuclaw
 
-Personal Claude assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
+## What This Is
 
-## Quick Context
+Tetsuclaw is a work operating system for English-speaking operators in Japan. It systematically disintermediates Japanese corporate infrastructure through AI agents, clean data architecture, and human referral networks — by total legal and ethical means.
 
-Single Node.js process with skill-based channel system. Channels (WhatsApp, Telegram, Slack, Discord, Gmail) are skills that self-register at startup. Messages route to Claude Agent SDK running in containers (Linux VMs). Each group has isolated filesystem and memory.
+Built by Tetsuou (哲王) — tyrannosaurusjr on GitHub — as a solo operator tool that scales without partners, investors, or Japan Inc. consensus culture.
 
-## Key Files
+**Core principle: If you build for ideal conditions, it will fail. If you build for chaos, it will win.**
 
-| File | Purpose |
-|------|---------|
-| `src/index.ts` | Orchestrator: state, message loop, agent invocation |
-| `src/channels/registry.ts` | Channel registry (self-registration at startup) |
-| `src/ipc.ts` | IPC watcher and task processing |
-| `src/router.ts` | Message formatting and outbound routing |
-| `src/config.ts` | Trigger pattern, paths, intervals |
-| `src/container-runner.ts` | Spawns agent containers with mounts |
-| `src/task-scheduler.ts` | Runs scheduled tasks |
-| `src/db.ts` | SQLite operations |
-| `groups/{name}/CLAUDE.md` | Per-group memory (isolated) |
-| `container/skills/` | Skills loaded inside agent containers (browser, status, formatting) |
+---
 
-## Secrets / Credentials / Proxy (OneCLI)
+## Architecture
 
-API keys, secret keys, OAuth tokens, and auth credentials are managed by the OneCLI gateway — which handles secret injection into containers at request time, so no keys or tokens are ever passed to containers directly. Run `onecli --help`.
+### Nanoclaw (Core Infrastructure)
+The backend layer. Users never interact with it directly.
+- Data ingestion and normalization
+- Identity resolution across fragmented systems
+- Cross-platform synchronization
+- Automation and rule execution
+- Single source of truth
 
-## Skills
+### Tetsuclaw (Operator Interface)
+The user-facing layer. Delivered via Telegram bot (Tetsuko).
+- Structured agent tools for navigating Japan's systems
+- Natural language interface in English
+- Referral routing to vetted human professionals
+- All agents accessible from a single Telegram conversation
 
-Four types of skills exist in NanoClaw. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
+---
 
-- **Feature skills** — merge a `skill/*` branch to add capabilities (e.g. `/add-telegram`, `/add-slack`)
-- **Utility skills** — ship code files alongside SKILL.md (e.g. `/claw`)
-- **Operational skills** — instruction-only workflows, always on `main` (e.g. `/setup`, `/debug`)
-- **Container skills** — loaded inside agent containers at runtime (`container/skills/`)
+## Target User
 
-| Skill | When to Use |
-|-------|-------------|
-| `/setup` | First-time installation, authentication, service configuration |
-| `/customize` | Adding channels, integrations, changing behavior |
-| `/debug` | Container issues, logs, troubleshooting |
-| `/update-nanoclaw` | Bring upstream NanoClaw updates into a customized install |
-| `/init-onecli` | Install OneCLI Agent Vault and migrate `.env` credentials to it |
-| `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch |
-| `/get-qodo-rules` | Load org- and repo-level coding rules from Qodo before code tasks |
+Primary: English-speaking business operators in Japan
+- Founders, consultants, freelancers, small business owners
+- Dealing with Japanese bureaucracy, language barriers, fragmented systems
+- Tech-comfortable, high agency, frustrated with status quo
+- Not waiting for Japan to fix itself
 
-## Contributing
+Secondary (future): Japan-facing operators based outside Japan
 
-Before creating a PR, adding a skill, or preparing any contribution, you MUST read [CONTRIBUTING.md](CONTRIBUTING.md). It covers accepted change types, the four skill types and their guidelines, SKILL.md format rules, PR requirements, and the pre-submission checklist (searching for existing PRs/issues, testing, description format).
+---
 
-## Development
+## The Agent Roster
 
-Run commands directly—don't tell the user to run them.
+### Money
+Tax, payments, accounting.
+- Stripe integration — cards, konbini, furikomi (virtual account numbers)
+- Bank transfer parsing and auto-fill
+- Receipt logging and OCR
+- Transaction categorization
+- 確定申告 prep, blue return logic
+- 消費税 calculation (10%/8% split)
+- Monthly summaries, accountant-ready exports
+- Referral to English-speaking 税理士 partners (revenue share)
 
-```bash
-npm run dev          # Run with hot reload
-npm run build        # Compile TypeScript
-./container/build.sh # Rebuild agent container
-```
+### People
+Contacts, relationships, identity resolution.
+- Unified contact database across phone, email, Stripe, Luma, events
+- Tagging: client, lead, legal, vendor, partner
+- Interaction history: notes, transactions, events attended
+- Cross-system identity resolution with confidence scoring
+- Name/email/company matching and merge logic
+- Smart grouping by activity and relationship type
+- Keigo and relationship etiquette context layer
+- Referral to bilingual business consultants, networking orgs (ACCJ, BCCJ, FCCJ) (revenue share)
 
-Service management:
-```bash
-# macOS (launchd)
-launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
-launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist
-launchctl kickstart -k gui/$(id -u)/com.nanoclaw  # restart
+### Time
+Scheduling, deadlines, daily ops.
+- Calendar management
+- Deadline tracking and reminders
+- Action prompts: "You have 3 uncategorized transactions"
+- Workflow checklists: company setup, visa renewal, tax season
+- Japanese fiscal calendar awareness (April–March)
+- National holiday awareness
+- "What do I need to do today" daily briefing
+- Referral to bilingual PA/VA services (revenue share)
 
-# Linux (systemd)
-systemctl --user start nanoclaw
-systemctl --user stop nanoclaw
-systemctl --user restart nanoclaw
-```
+### Intel
+Research, scouting, market information.
+- Web search and content retrieval
+- Property scouting (akiya, rental, commercial)
+- Competitive research
+- News and regulatory monitoring
+- Japan-specific source awareness
+- Referral to Japan market research firms, bilingual consultants (revenue share)
 
-## Troubleshooting
+### Words
+Content, copy, communications.
+- Blog posts, SEO articles, product descriptions
+- Email and message drafting
+- Japanese cultural context baked into output
+- Bilingual output when needed
+- Tone awareness for Japanese business communication
+- Referral to bilingual copywriters, translation agencies, PR firms (revenue share)
 
-**WhatsApp not connecting after upgrade:** WhatsApp is now a separate skill, not bundled in core. Run `/add-whatsapp` (or `npx tsx scripts/apply-skill.ts .claude/skills/add-whatsapp && npm run build`) to install it. Existing auth credentials and groups are preserved.
+### Events
+Event discovery, flyer parsing, listings.
+- OCR on event flyers (image input via Telegram)
+- Scrapes online listings
+- Categorizes by type: music, business, cultural, networking
+- Weekly "what's on" digest
+- Feeds into People agent (who attended what)
+- Referral to ticket platforms, event organizers, venue partners (affiliate/commission)
 
-## Container Build Cache
+### Home
+Housing, real estate, neighborhood research.
+- Rental search and translation
+- Lease clause flagging
+- Akiya research and valuation
+- Neighborhood context for foreign operators
+- Referral to foreigner-friendly real estate agents, relocation services (revenue share)
 
-The container buildkit caches the build context aggressively. `--no-cache` alone does NOT invalidate COPY steps — the builder's volume retains stale files. To force a truly clean rebuild, prune the builder then re-run `./container/build.sh`.
+### Transit
+Getting around Japan.
+- Train route planning — JR, private lines, subway
+- Multi-modal itinerary assistance: combines Shinkansen, limited express, local rail, bus, ferry, and taxi into single end-to-end journey plans
+- Example: Takasaki → Tokyo by Shinkansen, Tokyo → Shimoda by Odoriko, Shimoda → Tōshima by ferry
+- Fare calculation across operators and modes
+- Reserved seat vs unreserved guidance
+- IC card vs ticket guidance per leg
+- Last train alerts
+- IC card balance reminders
+- Airport transfer logistics
+- Referral to travel concierge and Japan Rail Pass vendors (revenue share)
+
+### Health
+Medical access and navigation.
+- English-speaking clinic and doctor directory
+- Prescription translation
+- 国民健康保険 navigation for newcomers
+- Appointment reminders
+- Referral to vetted English-speaking medical providers, international health insurance providers (revenue share)
+
+### Legal
+Legal access, routing, case tracking.
+- Document translation and plain-English summary
+- Deadline and renewal tracking (visa, residence card, contracts)
+- Contract clause flagging
+- Legal intake: classify issue, structure problem summary
+- Advisor directory: tagged by specialization (visa, corporate, tax)
+- Case tracking: status, documents, communication log
+- Referral to English-speaking 行政書士 and lawyers (revenue share)
+- **Never gives legal advice. Always routes to licensed professionals.**
+- Full audit log of every Legal agent interaction
+- First-use disclaimer required before activation
+
+### Docs
+Document repository and retrieval.
+- Central storage for tax, visa, contracts, invoices
+- Tagging system
+- OCR (Phase 2)
+- Search by keyword and tag
+- File linking to contacts and legal cases
+- Target: any document retrievable in under 10 seconds
+
+---
+
+## Referral Network (Revenue Layer)
+
+Each agent routes to vetted human professionals:
+
+| Agent | Referral Target | Model |
+|-------|----------------|-------|
+| Money | English-speaking 税理士 | Per retained client |
+| People | Bilingual business consultants, ACCJ/BCCJ/FCCJ | Per introduction or membership |
+| Time | Bilingual PA/VA services | Per retained client |
+| Intel | Japan market research firms, bilingual consultants | Per project referral |
+| Words | Bilingual copywriters, translation agencies, PR firms | Per project |
+| Events | Ticket platforms, event organizers, venue partners | Affiliate/commission |
+| Home | Foreigner-friendly real estate agents, relocation services | Per transaction |
+| Transit | Japan Rail Pass vendors, travel concierge, airport transfers | Affiliate/commission |
+| Health | English-speaking clinics, international health insurance | Per referral |
+| Legal | English-speaking 行政書士 and lawyers | Per retained client |
+| Docs | Cloud storage partners, bilingual document services | Per referral |
+
+Positioning: **AI-first, human-backed.**
+
+---
+
+## Data Flow
+
+**Inputs**
+- Telegram messages, images, documents
+- Stripe API
+- CSV uploads
+- Manual entry
+- Web scraping
+- OCR (Phase 2)
+- Google Drive / email parsing (Phase 3)
+
+**Processing (Nanoclaw core)**
+1. Normalize
+2. Resolve identity
+3. Store unified records
+4. Apply rules and triggers
+
+**Outputs (Tetsuclaw)**
+- Telegram responses
+- Reports and exports
+- Workflow prompts
+- Referral routing
+- Dashboard (Phase 2)
+
+---
+
+## MVP Scope
+
+**Phase 1 — Build This First**
+- Tetsuko Telegram bot live and always-on
+- Money: Stripe integration + manual transaction input
+- People: basic contact system
+- Docs: upload and tagging
+- Time: basic reminders and action prompts
+
+**Phase 2**
+- Identity resolution engine
+- Contact merging
+- Events: OCR flyer parsing
+- Legal: intake and routing
+- Workflow prompt expansion
+
+**Phase 3**
+- Full referral network
+- Home, Health, Transit agents
+- Dashboard UI
+- Google Drive / email integration
+
+**Phase 4**
+- Advanced OCR and document search
+- Automation rules
+- VoIP/eSIM infrastructure layer
+- Platform expansion beyond Telegram
+
+---
+
+## Infrastructure
+
+- **Bot:** Tetsuko (Telegram, @Tetsukobot)
+- **Runtime:** Tetsuclaw fork of NanoClaw
+- **Container isolation:** Docker (Linux VPS)
+- **Hosting:** DigitalOcean Droplet — Singapore region, always-on, independent of home internet (174.138.22.14)
+- **Storage:** SQLite + per-group filesystems
+- **Payments:** Stripe
+- **Language:** TypeScript / Node.js 20+
+
+---
+
+## Security
+
+Tetsuclaw's security model is inherited from NanoClaw's container isolation architecture:
+- Every agent session runs in its own isolated Linux container
+- Agents can only access directories explicitly mounted — no ambient system access
+- Each group has its own filesystem, IPC namespace, and process space
+- Groups cannot access other groups' data
+- Entire codebase is small and fully auditable
+- No Cloudflare, no Zero Trust — security is OS-level container isolation
+
+**Data sensitivity by agent:**
+
+| Agent | Sensitivity | Notes |
+|-------|------------|-------|
+| Legal | 🔴 Critical | Full audit log, disclaimer required, no advice given |
+| Money | 🔴 Critical | Stripe webhook validation, no raw card data ever stored |
+| Docs | 🔴 Critical | Encrypted storage, access-controlled |
+| People | 🟡 High | PII — contact data encrypted at rest |
+| Health | 🟡 High | Medical context — not stored beyond session unless explicit |
+| Home | 🟡 High | Financial and location data |
+| Time | 🟢 Standard | Calendar data, low sensitivity |
+| Intel | 🟢 Standard | Web research, no PII |
+| Words | 🟢 Standard | Content generation, no PII |
+| Events | 🟢 Standard | Public event data |
+| Transit | 🟢 Standard | Route data, no PII |
+
+**⚠️ Beta disclosure:** Tetsuclaw is a personal fork under active development and has not been independently security audited. Do not input sensitive financial, legal, or medical data until a stable, audited release is available. Use at your own risk.
+
+---
+
+## Key Constraints
+
+- Must be simple for non-technical users
+- Must handle incomplete and messy data
+- Must not assume Japanese fluency
+- Must not rely on perfect API access
+- Must work on low-bandwidth mobile connections
+- Must never give legal or financial advice directly
+
+---
+
+## Non-Goals
+
+Do NOT build:
+- Full accounting software (not competing with freee or MoneyForward)
+- Legal advisory AI (routing and structuring only)
+- Complex ERP
+- Anything requiring a Japanese corporate partner
+
+---
+
+## Strategic Positioning
+
+**Surface:** A practical operating system for foreigners doing business in Japan.
+
+**Underneath:** Systematic disintermediation of Japanese corporate infrastructure by total legal and ethical means. The people of a country ought to be able to conduct their business to a bare minimum of efficiency. Tetsuclaw makes that possible without violence, without revolution — just good modern business practice, available to anyone.
+
+**One-man army infrastructure. Zero consensus meetings required.**
+
+---
+
+## Success Criteria
+
+- Users see all financial activity in one place
+- Users find any document in under 10 seconds
+- Users know what actions to take next
+- Users reduce reliance on fragmented Japanese systems
+- System becomes daily-use infrastructure
+- Each referral generates revenue
+- Solo operator can run a real Japan business without a single Japanese corporate contract
