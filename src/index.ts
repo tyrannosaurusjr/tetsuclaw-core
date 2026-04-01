@@ -43,6 +43,7 @@ import {
   initDatabase,
   setRegisteredGroup,
   setRouterState,
+  deleteSession,
   setSession,
   storeChatMetadata,
   storeMessage,
@@ -516,6 +517,17 @@ async function runAgent(
     }
 
     if (output.status === 'error') {
+      if (
+        output.error &&
+        output.error.includes('No conversation found with session ID')
+      ) {
+        logger.warn(
+          { group: group.name },
+          'Dead session detected, clearing session to start fresh',
+        );
+        delete sessions[group.folder];
+        deleteSession(group.folder);
+      }
       logger.error(
         { group: group.name, error: output.error },
         'Container agent error',
