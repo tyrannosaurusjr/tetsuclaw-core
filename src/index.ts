@@ -186,10 +186,7 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
 
   // Copy full template directory into the new group folder so agents have
   // identity, instructions, and user config scaffolding from the first run.
-  const templateDir = path.join(
-    GROUPS_DIR,
-    group.isMain ? 'main' : 'global',
-  );
+  const templateDir = path.join(GROUPS_DIR, group.isMain ? 'main' : 'global');
   if (fs.existsSync(templateDir)) {
     // Copy CLAUDE.md
     const groupMdFile = path.join(groupDir, 'CLAUDE.md');
@@ -554,17 +551,29 @@ async function runAgent(
     }
 
     if (output.status === 'error') {
-      if (
+      // Detect stale/corrupt session — clear it so the next retry starts fresh.
+      // Catches: missing session transcript (.jsonl ENOENT), deleted sessions,
+      // or corrupt session state after crashes.
+      const isStaleSession =
+        sessionId &&
         output.error &&
-        output.error.includes('No conversation found with session ID')
-      ) {
+        /no conversation found|ENOENT.*\.jsonl|session.*not found/i.test(
+          output.error,
+        );
+
+      if (isStaleSession) {
         logger.warn(
-          { group: group.name },
-          'Dead session detected, clearing session to start fresh',
+          {
+            group: group.name,
+            staleSessionId: sessionId,
+            error: output.error,
+          },
+          'Stale session detected — clearing for next retry',
         );
         delete sessions[group.folder];
         deleteSession(group.folder);
       }
+
       logger.error(
         { group: group.name, error: output.error },
         'Container agent error',
