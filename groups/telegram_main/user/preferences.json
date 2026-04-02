@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-02",
+  "food": {
+    "cuisines": {
+      "favorites": ["Mediterranean", "Japanese", "American"],
+      "avoid": [],
+      "philosophy": "Gotta have flavor, spice, texture, bravado — even if the bravado is in the subdued. Hates boring food."
+    },
+    "dining_style": {
+      "solo_weeknight": "Cook at home",
+      "client_entertaining": "Nice, local, upscale but rustic",
+      "casual_friends": "Izakaya or craft beer bar"
+    },
+    "restrictions": {
+      "dietary": "None",
+      "allergies": "None",
+      "attitude": "Dislikes restaurants that over-cater to dietary restrictions"
+    },
+    "price_range_yen": {
+      "lunch": { "min": 1000, "max": 3000 },
+      "dinner": { "min": 4000, "max": 8000 },
+      "treating_entertaining": "Double the normal range",
+      "flexibility": "Always happy to go higher for something good and unique"
+    },
+    "deal_breakers": {
+      "personal": "None specifically",
+      "note": "Occasionally dines with people who have preferences — likes to be aware of their needs"
+    },
+    "station_proximity": {
+      "acceptable_walk_minutes": 15,
+      "if_amazing": 20
+    },
+    "discovery": {
+      "known_vs_new": "70/30 — mostly trusted spots, but actively explores",
+      "style": "Looks for places with personality, not just good food"
+    },
+    "reference_restaurants": {
+      "tokyo": [
+        "Junkadelic",
+        "Dragon Borracho",
+        "Raw Soup Gakugeidaigaku",
+        "Overwhelm Hamburger",
+        "insa Okinawan",
+        "Tsuji-que",
+        "Soba Tajima",
+        "Kuumba du Falafel"
+      ],
+      "yugawara": [
+        "Lunch Itta",
+        "Torisuke",
+        "Yoru no Ajito",
+        "海山",
+        "Herlequin Biz",
+        "Salute",
+        "Shirako",
+        "Arai Shoten"
+      ]
+    }
+  },
+  "cafe": {
+    "primary_use": "Working — rarely hangs out, but open to it if the place is good enough",
+    "must_haves": [
+      "WiFi (absolute must)",
+      "Power outlets",
+      "Reasonably sized tables (laptop + coffee + notebook without knocking things over)",
+      "Quiet or hushed conversation",
+      "No families or babies"
+    ],
+    "coffee": {
+      "quality": "Likes good coffee but not a snob — reasonable quality and price",
+      "max_price_yen": 800
+    },
+    "vibe": {
+      "ideal": "Spacious, good sound dampening, interior design and decoration, low-level music, good lighting, insulated",
+      "session_length": "Could stay a few hours if nice enough"
+    },
+    "chains_ok": true,
+    "chains_note": "Chains are fine for cafes (unlike restaurants) — they tend to deliver on big tables, sound dampening, decent prices",
+    "reference_cafes": {
+      "meguro_area_former": [
+        "Open Nakameguro (got expensive)",
+        "Swell Coffee Roasters Naka Meguro (got expensive)",
+        "Alpha Beta Coffee Club (got expensive)"
+      ]
+    }
+  },
+  "accommodation": {
+    "types": ["Hotel", "Ryokan", "Airbnb"],
+    "preferred": "Ryokan if nice — for both business and leisure",
+    "room_must_haves": [
+      "Good size — not cramped",
+      "View",
+      "Proper bathroom (not a unit bath)",
+      "Desk with ample workspace",
+      "No TV preferred",
+      "Good lounge area in the hotel"
+    ],
+    "ryokan_preferences": {
+      "wants": ["Onsen", "Futon", "The full experience"],
+      "skip": "Kaiseki — prefers to explore local cuisine rather than being locked into ryokan meals"
+    },
+    "price_range_yen_per_night": {
+      "normal": { "min": 15000, "max": 30000 }
+    },
+    "location": {
+      "must": "Not in a slum or shitty part of town (hates Kabukicho)",
+      "preferred": "Proximity to interesting nightlife if in a city, access to unique local food and drinks"
+    },
+    "deal_breakers": [
+      "Dirty",
+      "Small rooms",
+      "Weird smell",
+      "Google reviews under 4.5"
+    ],
+    "reference_accommodation": [
+      {
+        "name": "Royal Park Hotel Takamatsu",
+        "location": "Takamatsu, Kagawa",
+        "note": "Really good — reference point for quality"
+      }
+    ]
+  },
+  "entertainment": {
+    "interests": [
+      "Live music (musician and booker)",
+      "Art",
+      "Bars (craft beer, standing bars)",
+      "Outdoor sports (hiking, climbing, diving, surfing)",
+      "Sports (occasionally)"
+    ],
+    "social": {
+      "tendency": "Both solo and with people — tends toward social but wants more solo time in nature",
+      "solo_preference": "Nature and outdoor activities"
+    },
+    "nightlife": {
+      "scene": ["Live houses", "Craft beer bars"],
+      "not_into": "Clubs, Kabukicho-style nightlife"
+    },
+    "background": "Musician and booker — live music is both hobby and professional interest",
+    "budget_night_out_yen": 10000,
+    "reference_spots": [
+      "Yggdrasil Brewing",
+      "Thrash Zone",
+      "Earthdom",
+      "Bush Bash",
+      "Camp grounds (various)"
+    ]
+  },
+  "travel": {
+    "mode_selection": {
+      "under_90_min": "Local train",
+      "90min_to_4hrs": "Shinkansen (Green Car, reserved seat)",
+      "over_4hrs": "Airplane"
+    },
+    "train": {
+      "seat": "Reserved, Green Car",
+      "window_aisle": "Window"
+    },
+    "airlines": ["ANA", "JAL"],
+    "driving": {
+      "has_car": true,
+      "approach": "Drives own car if practical, rents for long distances"
+    },
+    "booking": {
+      "advance": "At least 1 month in advance"
+    },
+    "packing": {
+      "style": "Very light but well-packed — years of backpacking and solo video production from a backpack"
+    },
+    "arrival_rituals": [
+      "Onsen",
+      "Local food",
+      "Tenugui (local towel/textile)",
+      "Sea salt (local)"
+    ]
+  }
+}

@@ -90,6 +90,12 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - High-quality OCR for Japanese and English text.
 - Never ask the user to type out what's in an image.
 
+### User Preferences
+- Read `user/preferences.json` before making any recommendations for food, cafes, accommodation, entertainment, or travel.
+- Preferences are persistent and survive session resets.
+- When the user shares new preferences or updates existing ones, write them to this file immediately.
+- All agents should respect these preferences when making suggestions.
+
 ### Formatting
 - Use Telegram-native formatting: single *asterisks* for bold, _underscores_ for italic, • for bullets, ```backticks``` for code.
 - No markdown. No ## headings. No [links](url). No **double asterisks**.
