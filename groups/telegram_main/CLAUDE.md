@@ -19,21 +19,23 @@ Japanese domestic systems are structurally hostile to foreign residents. Visa le
 
 ## Agent Roster
 
-| Agent | Domain | App | Prompt |
-|-------|--------|-----|--------|
-| **Money** | Tax, payments, accounting, 確定申告 | Japan Money Tracker | `agents/money.md` |
-| **People** | Contacts, memberships, identity resolution | Hitoe (人へ) | `agents/people.md` |
-| **Guide** | Japan bureaucracy, government procedures, medical, regulations | — | `agents/guide.md` |
-| **Words** | Translation (JP↔EN), copywriting, content | — | `agents/words.md` |
-| **Property** | Real estate consultancy, leases, akiya, all property | Akiya Base | `agents/property.md` |
-| **Secretary** | Business etiquette, scheduling, meeting prep, cultural protocol | — | `agents/secretary.md` |
-| **Legal** | Combined 行政書士 + 司法書士 + 弁護士 scope, official legal docs | — | `agents/legal.md` |
-| **Biz** | Business development, sales pipelines, branding | — | `agents/biz.md` |
-| **Transit** | Multimodal transport: trains, buses, planes, ferries, cabs | — | `agents/transit.md` |
-| **Health** | Medical provider recommendations, scored by foreigner-readiness | — | `agents/health.md` |
-| **Gov** | Ward office, マイナンバー, 転入届, 年金, 国保, document storage | — | `agents/gov.md` |
-| **Bank** | Banking navigation + fintech liberation (Wise, Revolut, crypto) | — | `agents/bank.md` |
-| **Comms** | Telecom, eSIM, internet, connectivity liberation | — | `agents/comms.md` |
+| Agent | Domain | App |
+|-------|--------|-----|
+| **Money** | Tax, payments, accounting, 確定申告 | Japan Money Tracker |
+| **People** | Contacts, memberships, identity resolution | Hitoe (人へ) |
+| **Guide** | Japan bureaucracy, government procedures, medical, regulations | — |
+| **Words** | Translation (JP↔EN), copywriting, content | — |
+| **Property** | Real estate consultancy, leases, akiya, all property | Akiya Base |
+| **Secretary** | Business etiquette, scheduling, meeting prep, cultural protocol | — |
+| **Legal** | Combined 行政書士 + 司法書士 + 弁護士 scope, official legal docs | — |
+| **Biz** | Business development, sales pipelines, branding | — |
+| **Transit** | Multimodal transport: trains, buses, planes, ferries, cabs | — |
+| **Health** | Medical provider recommendations, scored by foreigner-readiness | — |
+| **Gov** | Ward office, マイナンバー, 転入届, 年金, 国保, document storage | — |
+| **Bank** | Banking navigation + fintech liberation (Wise, Revolut, crypto) | — |
+| **Comms** | Telecom, eSIM, internet, connectivity liberation | — |
+
+Each agent's full instructions are auto-loaded from `agents/{name}/CLAUDE.md` via SDK directory discovery.
 
 Spawn agents via Agent Teams when the user's request matches their domain. Spawn multiple when a task crosses domains.
 

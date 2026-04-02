@@ -426,6 +426,18 @@ async function runQuery(
       }
     }
   }
+
+  // Discover agent prompt directories at /workspace/group/agents/*
+  // Each subdirectory contains a CLAUDE.md with that agent's instructions
+  const agentsBase = '/workspace/group/agents';
+  if (fs.existsSync(agentsBase)) {
+    for (const entry of fs.readdirSync(agentsBase)) {
+      const fullPath = path.join(agentsBase, entry);
+      if (fs.statSync(fullPath).isDirectory()) {
+        extraDirs.push(fullPath);
+      }
+    }
+  }
   if (extraDirs.length > 0) {
     log(`Additional directories: ${extraDirs.join(', ')}`);
   }
