@@ -9,20 +9,10 @@ store/
 data/
 logs/
 
-# Groups - only track base structure and specific CLAUDE.md files
+# Groups - track templates only, not per-install data
 groups/*
 !groups/main/
 !groups/global/
-!groups/telegram_main/
-groups/main/*
-groups/global/*
-groups/telegram_main/*
-!groups/main/CLAUDE.md
-!groups/global/CLAUDE.md
-!groups/telegram_main/CLAUDE.md
-!groups/telegram_main/agents/
-!groups/telegram_main/user/
-!groups/telegram_main/config/
 
 # Secrets
 *.keys.json

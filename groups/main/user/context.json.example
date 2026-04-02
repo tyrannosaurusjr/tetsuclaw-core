@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "updated_at": "",
+  "name": "",
+  "years_in_japan": 0,
+  "locations": {
+    "primary": "",
+    "secondary": ""
+  },
+  "visa": {
+    "type": "",
+    "expiry": ""
+  },
+  "business": {
+    "type": "",
+    "entity_name": "",
+    "entity_status": "",
+    "activities": []
+  },
+  "notes": ""
+}

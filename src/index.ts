@@ -184,23 +184,54 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
   // Create group folder
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
 
-  // Copy CLAUDE.md template into the new group folder so agents have
-  // identity and instructions from the first run.  (Fixes #1391)
-  const groupMdFile = path.join(groupDir, 'CLAUDE.md');
-  if (!fs.existsSync(groupMdFile)) {
-    const templateFile = path.join(
-      GROUPS_DIR,
-      group.isMain ? 'main' : 'global',
-      'CLAUDE.md',
-    );
-    if (fs.existsSync(templateFile)) {
-      let content = fs.readFileSync(templateFile, 'utf-8');
-      if (ASSISTANT_NAME !== 'Andy') {
-        content = content.replace(/^# Andy$/m, `# ${ASSISTANT_NAME}`);
-        content = content.replace(/You are Andy/g, `You are ${ASSISTANT_NAME}`);
+  // Copy full template directory into the new group folder so agents have
+  // identity, instructions, and user config scaffolding from the first run.
+  const templateDir = path.join(
+    GROUPS_DIR,
+    group.isMain ? 'main' : 'global',
+  );
+  if (fs.existsSync(templateDir)) {
+    // Copy CLAUDE.md
+    const groupMdFile = path.join(groupDir, 'CLAUDE.md');
+    if (!fs.existsSync(groupMdFile)) {
+      const templateMd = path.join(templateDir, 'CLAUDE.md');
+      if (fs.existsSync(templateMd)) {
+        let content = fs.readFileSync(templateMd, 'utf-8');
+        if (ASSISTANT_NAME !== 'Andy') {
+          content = content.replace(/^# Andy$/m, `# ${ASSISTANT_NAME}`);
+          content = content.replace(
+            /You are Andy/g,
+            `You are ${ASSISTANT_NAME}`,
+          );
+        }
+        fs.writeFileSync(groupMdFile, content);
+        logger.info(
+          { folder: group.folder },
+          'Created CLAUDE.md from template',
+        );
       }
-      fs.writeFileSync(groupMdFile, content);
-      logger.info({ folder: group.folder }, 'Created CLAUDE.md from template');
+    }
+
+    // Copy agents/ directory (agent prompt templates)
+    const templateAgents = path.join(templateDir, 'agents');
+    const groupAgents = path.join(groupDir, 'agents');
+    if (fs.existsSync(templateAgents) && !fs.existsSync(groupAgents)) {
+      fs.cpSync(templateAgents, groupAgents, { recursive: true });
+      logger.info(
+        { folder: group.folder },
+        'Copied agent templates from template directory',
+      );
+    }
+
+    // Copy user/ directory (config scaffolding)
+    const templateUser = path.join(templateDir, 'user');
+    const groupUser = path.join(groupDir, 'user');
+    if (fs.existsSync(templateUser) && !fs.existsSync(groupUser)) {
+      fs.cpSync(templateUser, groupUser, { recursive: true });
+      logger.info(
+        { folder: group.folder },
+        'Copied user config scaffolding from template directory',
+      );
     }
   }
 

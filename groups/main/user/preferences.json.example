@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "updated_at": "",
+  "food": {
+    "cuisines": {
+      "favorites": [],
+      "avoid": [],
+      "philosophy": ""
+    },
+    "dining_style": {
+      "solo_weeknight": "",
+      "client_entertaining": "",
+      "casual_friends": ""
+    },
+    "restrictions": {
+      "dietary": "",
+      "allergies": ""
+    },
+    "price_range_yen": {
+      "lunch": { "min": 0, "max": 0 },
+      "dinner": { "min": 0, "max": 0 }
+    },
+    "station_proximity": {
+      "acceptable_walk_minutes": 15
+    },
+    "reference_restaurants": {}
+  },
+  "cafe": {
+    "primary_use": "",
+    "must_haves": [],
+    "coffee": {
+      "quality": "",
+      "max_price_yen": 0
+    },
+    "vibe": {
+      "ideal": ""
+    },
+    "chains_ok": true,
+    "reference_cafes": {}
+  },
+  "accommodation": {
+    "types": [],
+    "room_must_haves": [],
+    "price_range_yen_per_night": {
+      "normal": { "min": 0, "max": 0 }
+    },
+    "deal_breakers": [],
+    "reference_accommodation": []
+  },
+  "entertainment": {
+    "interests": [],
+    "nightlife": {
+      "scene": []
+    },
+    "budget_night_out_yen": 0,
+    "reference_spots": []
+  },
+  "travel": {
+    "mode_selection": {
+      "under_90_min": "",
+      "90min_to_4hrs": "",
+      "over_4hrs": ""
+    },
+    "train": {
+      "seat": "",
+      "window_aisle": ""
+    },
+    "airlines": [],
+    "booking": {
+      "advance": ""
+    },
+    "packing": {
+      "style": ""
+    },
+    "arrival_rituals": []
+  }
+}
