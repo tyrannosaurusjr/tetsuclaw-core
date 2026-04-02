@@ -110,37 +110,52 @@ async function launchWithProfile(
 }
 
 async function checkLogin(page: Page): Promise<string | null> {
-  await page.goto(MAPS_URL, { waitUntil: 'domcontentloaded' });
-  // Wait a moment for redirects
-  await page.waitForTimeout(3000);
+  // Navigate to Google's login endpoint directly — this reliably reveals
+  // whether the saved browser profile actually has a valid session.
+  await page.goto('https://accounts.google.com/ServiceLogin', {
+    waitUntil: 'domcontentloaded',
+  });
+  // Give redirects plenty of time to settle (session restore can be slow)
+  await page.waitForTimeout(8000);
 
   const url = page.url();
 
-  // If redirected to accounts.google.com or consent page, not logged in
+  // If we're still on the sign-in page, the session is invalid
   if (
-    url.includes('accounts.google.com') ||
     url.includes('/ServiceLogin') ||
+    url.includes('/signin') ||
+    url.includes('accounts.google.com/v3/signin') ||
     url.includes('consent.google.com')
   ) {
     return null;
   }
 
-  // Try to extract account email/name from the profile button
+  // If we were redirected to myaccount.google.com or similar, we're logged in.
+  // Try to extract account email/name from the page.
   try {
-    const accountBtn = page.locator(
-      'a[aria-label*="Google Account"], button[aria-label*="Google Account"]',
+    // myaccount pages often show the email in a data attribute or heading
+    const emailEl = page.locator(
+      '[data-email], a[aria-label*="Google Account"]',
     );
-    const label = await accountBtn.first().getAttribute('aria-label', {
-      timeout: 5000,
-    });
+    const email = await emailEl
+      .first()
+      .getAttribute('data-email', { timeout: 5000 });
+    if (email) return email;
+
+    const label = await emailEl
+      .first()
+      .getAttribute('aria-label', { timeout: 3000 });
     if (label) {
-      // Typical: "Google Account: Name (email@gmail.com)"
       const match = label.match(/\(([^)]+)\)/);
       return match ? match[1] : label.replace('Google Account: ', '');
     }
   } catch {
     // Not critical
   }
+
+  // Now navigate to Maps so the rest of the flow starts from the right page
+  await page.goto(MAPS_URL, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(5000);
 
   return 'authenticated';
 }
@@ -181,18 +196,11 @@ async function scrapeListIndex(
   }
 
   // Click "Saved" in the menu
-  const savedOption = page
-    .locator(
-      'button[aria-label="Saved"], ' +
-        'a[aria-label="Saved"], ' +
-        'button:has-text("Saved"), ' +
-        'a:has-text("Saved")',
-    )
-    .first();
-
   try {
-    await savedOption.waitFor({ timeout: 10000 });
-    await savedOption.click();
+    await page
+      .locator('div[role="menuitem"]')
+      .filter({ hasText: 'Saved' })
+      .click();
     console.log('Clicked Saved in menu');
   } catch {
     console.error('Could not find Saved option in the menu');

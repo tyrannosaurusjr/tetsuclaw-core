@@ -75,6 +75,7 @@ import { parseImageReferences } from './image.js';
 import { initBotPool } from './channels/telegram.js';
 import { StatusTracker } from './status-tracker.js';
 import { logger } from './logger.js';
+import { WarmPool } from './warm-pool.js';
 
 // Re-export for backwards compatibility during refactor
 export { escapeXml, formatMessages } from './router.js';
@@ -91,6 +92,7 @@ let messageLoopRunning = false;
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 let statusTracker: StatusTracker;
+let warmPool: WarmPool | null = null;
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
@@ -495,6 +497,9 @@ async function runAgent(
     : undefined;
 
   try {
+    // Claim a warm container for the main group if available
+    const warm = isMain && warmPool ? warmPool.claim() : null;
+
     const output = await runContainerAgent(
       group,
       {
@@ -509,6 +514,7 @@ async function runAgent(
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
       wrappedOnOutput,
+      warm,
     );
 
     if (output.newSessionId) {
@@ -763,6 +769,7 @@ async function main(): Promise<void> {
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutdown signal received');
+    if (warmPool) await warmPool.shutdown();
     await queue.shutdown(10000);
     for (const ch of channels) await ch.disconnect();
     await statusTracker.shutdown();
@@ -974,6 +981,16 @@ async function main(): Promise<void> {
   // Recover status tracker AFTER channels connect, so recovery reactions
   // can actually be sent via the WhatsApp channel.
   await statusTracker.recover();
+  // Start warm pool for the main group to eliminate cold-start latency.
+  // The warm container pre-spawns and blocks on stdin, ready for instant use.
+  const mainGroup = Object.values(registeredGroups).find((g) => g.isMain);
+  if (mainGroup) {
+    warmPool = new WarmPool(mainGroup);
+    warmPool.start().catch((err) => {
+      logger.warn({ err }, 'Warm pool failed to start');
+    });
+  }
+
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();
   startMessageLoop().catch((err) => {
