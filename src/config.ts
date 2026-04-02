@@ -10,6 +10,7 @@ const envConfig = readEnvFile([
   'ASSISTANT_HAS_OWN_NUMBER',
   'OLLAMA_ADMIN_TOOLS',
   'ONECLI_URL',
+  'TELEGRAM_BOT_POOL',
   'TZ',
 ]);
 
@@ -99,7 +100,11 @@ function resolveConfigTimezone(): string {
 }
 export const TIMEZONE = resolveConfigTimezone();
 
-export const TELEGRAM_BOT_POOL = (process.env.TELEGRAM_BOT_POOL || '')
+export const TELEGRAM_BOT_POOL = (
+  process.env.TELEGRAM_BOT_POOL ||
+  envConfig.TELEGRAM_BOT_POOL ||
+  ''
+)
   .split(',')
   .map((t) => t.trim())
   .filter(Boolean);
