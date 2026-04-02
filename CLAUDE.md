@@ -21,7 +21,7 @@ The backend layer. Users never interact with it directly.
 - Single source of truth
 
 ### Tetsuclaw (Operator Interface)
-The user-facing layer. Delivered via Telegram bot (Tetsuko).
+The user-facing layer. Delivered via Telegram bot (Tetsuclaw).
 - Structured agent tools for navigating Japan's systems
 - Natural language interface in English
 - Referral routing to vetted human professionals
@@ -207,7 +207,7 @@ Positioning: **AI-first, human-backed.**
 ## MVP Scope
 
 **Phase 1 — Build This First**
-- Tetsuko Telegram bot live and always-on
+- Tetsuclaw Telegram bot live and always-on
 - Money: Stripe integration + manual transaction input
 - People: basic contact system
 - Docs: upload and tagging
@@ -236,7 +236,7 @@ Positioning: **AI-first, human-backed.**
 
 ## Infrastructure
 
-- **Bot:** Tetsuko (Telegram, @Tetsukobot)
+- **Bot:** Tetsuclaw (Telegram)
 - **Runtime:** Tetsuclaw fork of NanoClaw
 - **Container isolation:** Docker (Linux VPS)
 - **Hosting:** DigitalOcean Droplet — Singapore region, always-on, independent of home internet (174.138.22.14)
