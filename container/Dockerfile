@@ -38,19 +38,23 @@ RUN npm install -g agent-browser @anthropic-ai/claude-code
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY agent-runner/package*.json ./
+COPY container/agent-runner/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY agent-runner/ ./
+COPY container/agent-runner/ ./
+
+# Copy X integration skill MCP tools
+RUN mkdir -p ./src/skills/x-integration
+COPY .claude/skills/x-integration/agent.ts ./src/skills/x-integration/
 
 # Build TypeScript
 RUN npm run build
 
 # Install pdf-reader CLI
-COPY skills/pdf-reader/pdf-reader /usr/local/bin/pdf-reader
+COPY container/skills/pdf-reader/pdf-reader /usr/local/bin/pdf-reader
 RUN chmod +x /usr/local/bin/pdf-reader
 
 # Create workspace directories
