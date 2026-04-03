@@ -53,6 +53,11 @@ const senderBotMap = new Map<string, number>();
 let nextPoolIndex = 0;
 let mainBotApi: Api | null = null;
 
+// Track the latest message_thread_id per chat (for Topics-enabled groups).
+// When a group has Topics enabled, all replies and typing indicators must
+// include message_thread_id or Telegram silently drops them.
+const chatThreadId = new Map<string, number>();
+
 /**
  * Initialize send-only Api instances for the bot pool.
  */
@@ -84,10 +89,14 @@ export async function sendPoolMessage(
   sender: string,
   groupFolder: string,
 ): Promise<void> {
+  const threadOpts = chatThreadId.has(chatId)
+    ? { message_thread_id: chatThreadId.get(chatId)! }
+    : {};
+
   if (poolApis.length === 0) {
     if (mainBotApi) {
       const numericId = chatId.replace(/^tg:/, '');
-      await sendTelegramMessage(mainBotApi, numericId, text);
+      await sendTelegramMessage(mainBotApi, numericId, text, threadOpts);
     }
     return;
   }
@@ -118,13 +127,14 @@ export async function sendPoolMessage(
     const numericId = chatId.replace(/^tg:/, '');
     const MAX_LENGTH = 4096;
     if (text.length <= MAX_LENGTH) {
-      await sendTelegramMessage(api, numericId, text);
+      await sendTelegramMessage(api, numericId, text, threadOpts);
     } else {
       for (let i = 0; i < text.length; i += MAX_LENGTH) {
         await sendTelegramMessage(
           api,
           numericId,
           text.slice(i, i + MAX_LENGTH),
+          threadOpts,
         );
       }
     }
@@ -187,6 +197,9 @@ export class TelegramChannel implements Channel {
       }
 
       const chatJid = `tg:${ctx.chat.id}`;
+      if (ctx.message.message_thread_id) {
+        chatThreadId.set(chatJid, ctx.message.message_thread_id);
+      }
       let content = ctx.message.text;
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =
@@ -264,6 +277,9 @@ export class TelegramChannel implements Channel {
     // Handle non-text messages with placeholders so the agent knows something was sent
     const storeNonText = (ctx: any, placeholder: string) => {
       const chatJid = `tg:${ctx.chat.id}`;
+      if (ctx.message?.message_thread_id) {
+        chatThreadId.set(chatJid, ctx.message.message_thread_id);
+      }
       const group = this.opts.registeredGroups()[chatJid];
       if (!group) return;
 
@@ -533,17 +549,21 @@ export class TelegramChannel implements Channel {
 
     try {
       const numericId = jid.replace(/^tg:/, '');
+      const threadOpts = chatThreadId.has(jid)
+        ? { message_thread_id: chatThreadId.get(jid)! }
+        : {};
 
       // Telegram has a 4096 character limit per message — split if needed
       const MAX_LENGTH = 4096;
       if (text.length <= MAX_LENGTH) {
-        await sendTelegramMessage(this.bot.api, numericId, text);
+        await sendTelegramMessage(this.bot.api, numericId, text, threadOpts);
       } else {
         for (let i = 0; i < text.length; i += MAX_LENGTH) {
           await sendTelegramMessage(
             this.bot.api,
             numericId,
             text.slice(i, i + MAX_LENGTH),
+            threadOpts,
           );
         }
       }
@@ -573,7 +593,10 @@ export class TelegramChannel implements Channel {
     if (!this.bot || !isTyping) return;
     try {
       const numericId = jid.replace(/^tg:/, '');
-      await this.bot.api.sendChatAction(numericId, 'typing');
+      const threadId = chatThreadId.get(jid);
+      await this.bot.api.sendChatAction(numericId, 'typing', {
+        ...(threadId ? { message_thread_id: threadId } : {}),
+      });
     } catch (err) {
       logger.debug({ jid, err }, 'Failed to send Telegram typing indicator');
     }
