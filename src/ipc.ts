@@ -4,7 +4,7 @@ import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
 
 import { handleXIpc } from './x-skill.js';
-import { DATA_DIR, IPC_POLL_INTERVAL, TIMEZONE } from './config.js';
+import { ASSISTANT_NAME, DATA_DIR, IPC_POLL_INTERVAL, TIMEZONE } from './config.js';
 import { sendPoolMessage } from './channels/telegram.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
@@ -92,12 +92,16 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   isMain ||
                   (targetGroup && targetGroup.folder === sourceGroup)
                 ) {
-                  // Use pool bots only for Telegram group chats (negative IDs).
-                  // DMs (positive IDs) must always use the main bot.
+                  // Use pool bots only for Telegram group chats (negative IDs)
+                  // AND only when the sender is a sub-agent (not the lead).
+                  // DMs and lead-agent messages always use the main bot.
                   const isTelegramGroup =
-                    data.chatJid.startsWith('tg:') &&
                     data.chatJid.startsWith('tg:-');
-                  if (data.sender && isTelegramGroup) {
+                  const isLeadAgent =
+                    !data.sender ||
+                    data.sender.toLowerCase() === ASSISTANT_NAME.toLowerCase() ||
+                    data.sender.toLowerCase() === 'tetsuclaw';
+                  if (data.sender && isTelegramGroup && !isLeadAgent) {
                     await sendPoolMessage(
                       data.chatJid,
                       data.text,
