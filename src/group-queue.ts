@@ -169,8 +169,16 @@ export class GroupQueue {
       const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}.json`;
       const filepath = path.join(inputDir, filename);
       const tempPath = `${filepath}.tmp`;
-      fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }));
+      fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }), {
+        mode: 0o666,
+      });
       fs.renameSync(tempPath, filepath);
+      // Container runs as uid 1000 (node) — must be able to delete after reading
+      try {
+        fs.chownSync(filepath, 1000, 1000);
+      } catch {
+        // ignore — non-root host can't chown
+      }
       return true;
     } catch {
       return false;
@@ -187,7 +195,13 @@ export class GroupQueue {
     const inputDir = path.join(DATA_DIR, 'ipc', state.groupFolder, 'input');
     try {
       fs.mkdirSync(inputDir, { recursive: true });
-      fs.writeFileSync(path.join(inputDir, '_close'), '');
+      const closePath = path.join(inputDir, '_close');
+      fs.writeFileSync(closePath, '', { mode: 0o666 });
+      try {
+        fs.chownSync(closePath, 1000, 1000);
+      } catch {
+        // ignore
+      }
     } catch {
       // ignore
     }
