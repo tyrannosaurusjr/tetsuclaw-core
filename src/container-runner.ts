@@ -186,7 +186,11 @@ export function buildVolumeMounts(
     const dir = path.join(groupIpcDir, sub);
     fs.mkdirSync(dir, { recursive: true });
     // Container runs as uid 1000 (node) — ensure it can read/write/delete
-    fs.chownSync(dir, 1000, 1000);
+    try {
+      fs.chownSync(dir, 1000, 1000);
+    } catch {
+      // ignore — non-root host can't chown
+    }
   }
   mounts.push({
     hostPath: groupIpcDir,

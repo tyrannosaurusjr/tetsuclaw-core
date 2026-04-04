@@ -4,7 +4,12 @@ import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
 
 import { handleXIpc } from './x-skill.js';
-import { ASSISTANT_NAME, DATA_DIR, IPC_POLL_INTERVAL, TIMEZONE } from './config.js';
+import {
+  ASSISTANT_NAME,
+  DATA_DIR,
+  IPC_POLL_INTERVAL,
+  TIMEZONE,
+} from './config.js';
 import { sendPoolMessage } from './channels/telegram.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
@@ -95,12 +100,18 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   // Use pool bots only for Telegram group chats (negative IDs)
                   // AND only when the sender is a sub-agent (not the lead).
                   // DMs and lead-agent messages always use the main bot.
-                  const isTelegramGroup =
-                    data.chatJid.startsWith('tg:-');
+                  const isTelegramGroup = data.chatJid.startsWith('tg:-');
+                  // Match lead agent by ASSISTANT_NAME or LEAD_AGENT_NAME env var.
+                  // These can differ: ASSISTANT_NAME is the trigger word,
+                  // LEAD_AGENT_NAME is the display name the agent uses for itself.
+                  const leadName = (
+                    process.env.LEAD_AGENT_NAME || ASSISTANT_NAME
+                  ).toLowerCase();
+                  const senderLower = data.sender?.toLowerCase() ?? '';
                   const isLeadAgent =
                     !data.sender ||
-                    data.sender.toLowerCase() === ASSISTANT_NAME.toLowerCase() ||
-                    data.sender.toLowerCase() === 'tetsuclaw';
+                    senderLower === ASSISTANT_NAME.toLowerCase() ||
+                    senderLower === leadName;
                   if (data.sender && isTelegramGroup && !isLeadAgent) {
                     await sendPoolMessage(
                       data.chatJid,
