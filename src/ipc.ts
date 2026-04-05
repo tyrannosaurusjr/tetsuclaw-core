@@ -10,7 +10,7 @@ import {
   IPC_POLL_INTERVAL,
   TIMEZONE,
 } from './config.js';
-import { sendPoolMessage } from './channels/telegram.js';
+import { sendPoolMessage, resolveTopicThreadId } from './channels/telegram.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
@@ -18,7 +18,7 @@ import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
-  sendMessage: (jid: string, text: string) => Promise<void>;
+  sendMessage: (jid: string, text: string, threadId?: number) => Promise<void>;
   sendReaction?: (
     jid: string,
     emoji: string,
@@ -97,6 +97,19 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   isMain ||
                   (targetGroup && targetGroup.folder === sourceGroup)
                 ) {
+                  // Resolve topic thread ID if topicName is specified
+                  let topicThreadId: number | undefined;
+                  if (data.topicName && data.chatJid.startsWith('tg:')) {
+                    const resolved = await resolveTopicThreadId(
+                      sourceGroup,
+                      data.topicName,
+                      data.chatJid,
+                    );
+                    if (resolved !== null) {
+                      topicThreadId = resolved;
+                    }
+                  }
+
                   // Use pool bots only for Telegram group chats (negative IDs)
                   // AND only when the sender is a sub-agent (not the lead).
                   // DMs and lead-agent messages always use the main bot.
@@ -118,9 +131,10 @@ export function startIpcWatcher(deps: IpcDeps): void {
                       data.text,
                       data.sender,
                       sourceGroup,
+                      topicThreadId,
                     );
                   } else {
-                    await deps.sendMessage(data.chatJid, data.text);
+                    await deps.sendMessage(data.chatJid, data.text, topicThreadId);
                   }
                   logger.info(
                     { chatJid: data.chatJid, sourceGroup },
