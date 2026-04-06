@@ -5,7 +5,6 @@ import {
   createTask,
   deleteTask,
   getAllChats,
-  getAllRegisteredGroups,
   getLastBotMessageTimestamp,
   getLatestMessage,
   getMessageFromMe,

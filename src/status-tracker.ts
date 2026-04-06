@@ -12,6 +12,7 @@ export enum StatusState {
   THINKING = 1,
   WORKING = 2,
   DONE = 3,
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   FAILED = 3,
 }
 
