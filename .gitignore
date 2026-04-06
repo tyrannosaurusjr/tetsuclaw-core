@@ -32,3 +32,6 @@ groups/*
 .nanoclaw/
 
 agents-sdk-docs
+
+# gstack security reports & analytics
+.gstack/
