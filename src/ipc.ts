@@ -134,7 +134,11 @@ export function startIpcWatcher(deps: IpcDeps): void {
                       topicThreadId,
                     );
                   } else {
-                    await deps.sendMessage(data.chatJid, data.text, topicThreadId);
+                    await deps.sendMessage(
+                      data.chatJid,
+                      data.text,
+                      topicThreadId,
+                    );
                   }
                   logger.info(
                     { chatJid: data.chatJid, sourceGroup },

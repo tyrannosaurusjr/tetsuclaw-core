@@ -108,10 +108,7 @@ export async function resolveTopicThreadId(
 
     return threadId;
   } catch (err) {
-    logger.error(
-      { err, topicName, chatId },
-      'Failed to create forum topic',
-    );
+    logger.error({ err, topicName, chatId }, 'Failed to create forum topic');
     return null;
   }
 }
@@ -609,7 +606,11 @@ export class TelegramChannel implements Channel {
     });
   }
 
-  async sendMessage(jid: string, text: string, threadId?: number): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    threadId?: number,
+  ): Promise<void> {
     if (!this.bot) {
       logger.warn('Telegram bot not initialized');
       return;
