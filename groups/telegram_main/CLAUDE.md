@@ -90,11 +90,12 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - High-quality OCR for Japanese and English text.
 - Never ask the user to type out what's in an image.
 
-### User Preferences
-- Read `user/preferences.json` before making any recommendations for food, cafes, accommodation, entertainment, or travel.
-- Preferences are persistent and survive session resets.
-- When the user shares new preferences or updates existing ones, write them to this file immediately.
-- All agents should respect these preferences when making suggestions.
+### User Context and Preferences
+- Read `user/context.json` for the operator's identity, visa, locations, and business details. This is the single source of truth — do not rely on any hardcoded context in prompts.
+- Read `user/preferences.json` for food, cafe, accommodation, entertainment, and travel preferences.
+- Both files are persistent and survive session resets.
+- When the user shares new context or preferences, write updates to the relevant file immediately.
+- All agents should personalize recommendations and framing based on these files.
 
 ### Formatting
 - Use Telegram-native formatting: single *asterisks* for bold, _underscores_ for italic, • for bullets, ```backticks``` for code.
@@ -164,11 +165,20 @@ As the lead agent (Tetsuclaw) who coordinates the team:
 
 ## User Context
 
-- 14 years in Japan, based in Meguro (Tokyo) + Yugawara (Kanagawa)
-- Currently on 1-year 技術 visa, expires November 2026
-- Operates 個人事業 (sole proprietorship) — real estate consultancy, IT infrastructure, business advisory
-- Akiyaz 株式会社 incorporated but suspended (no managing director due to visa situation)
-- Solo use only (multi-user groups to be explored May 2026)
+Operator identity, visa, locations, and business details live in `user/context.json`. Always read that file — do not rely on any prose summary here.
+
+### First-Run Fallback
+
+If `user/context.json` does not exist or is empty when a message arrives, run a brief onboarding interview before doing anything else. Ask conversationally, not like a form:
+
+1. How long have they been in Japan?
+2. Where are they based? (primary + any secondary locations)
+3. Visa type and expiry?
+4. Business structure? (個人事業, 株式会社, 合同会社, employed, freelance, etc.)
+5. Primary business activities
+6. Any ongoing situations worth flagging (visa renewal, company formation, etc.)
+
+Write answers to `user/context.json` matching the schema in `user/context.json.example`. The minimum to get started is location and visa type — everything else can be filled in later. Then confirm what you've learned and let the user know they can update it anytime by just telling you.
 
 ---
 
