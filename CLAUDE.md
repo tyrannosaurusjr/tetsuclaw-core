@@ -316,3 +316,7 @@ Do NOT build:
 - System becomes daily-use infrastructure
 - Each referral generates revenue
 - Solo operator can run a real Japan business without a single Japanese corporate contract
+
+
+## Cross-Project Reference
+See ~/Desktop/Projects/tyrannojr-github/project-rules/ for shared patterns, known pitfalls, and reusable modules across all tyrannosaurusjr projects. Check PROJECT-MAP.md before building something that may already exist in another repo.
