@@ -318,5 +318,9 @@ Do NOT build:
 - Solo operator can run a real Japan business without a single Japanese corporate contract
 
 
+## Failure Visibility
+
+This project follows the no-silent-failures rules in `~/Desktop/Projects/tyrannojr-github/project-rules/NO-SILENT-FAILURES.md`. If something goes wrong, the code must say so loudly — no swallowed exceptions, no masked exit codes, no silent fallbacks, no disabled tests without a tracked reason.
+
 ## Cross-Project Reference
 See ~/Desktop/Projects/tyrannojr-github/project-rules/ for shared patterns, known pitfalls, and reusable modules across all tyrannosaurusjr projects. Check PROJECT-MAP.md before building something that may already exist in another repo.
