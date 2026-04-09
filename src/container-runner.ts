@@ -61,6 +61,44 @@ interface VolumeMount {
   readonly: boolean;
 }
 
+// Container runs as uid 1000 (node) regardless of who runs the host process.
+// When nanoclaw runs as root (typical on a Linux VPS), any directory it
+// mkdir's is root-owned and the container can't write to it. This helper
+// recursively chowns a path to 1000:1000 so the container has access.
+// Idempotent — safe to call on every container spawn.
+// Non-root hosts get EPERM from chown and silently skip; they don't need
+// the chown because their uid matches the container's uid mapping anyway.
+// Exported for tests.
+export function ensureContainerOwned(targetPath: string): void {
+  try {
+    fs.chownSync(targetPath, 1000, 1000);
+  } catch {
+    // Non-root host: can't chown, doesn't need to.
+    return;
+  }
+  // Recurse into directory contents. Using readdirSync + recursion instead
+  // of a shell-out so this works on every platform.
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(targetPath, { withFileTypes: true });
+  } catch {
+    // Not a directory or not readable — nothing more to do.
+    return;
+  }
+  for (const entry of entries) {
+    const childPath = path.join(targetPath, entry.name);
+    if (entry.isDirectory()) {
+      ensureContainerOwned(childPath);
+    } else {
+      try {
+        fs.chownSync(childPath, 1000, 1000);
+      } catch {
+        // ignore per-file chown failures
+      }
+    }
+  }
+}
+
 export function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
@@ -136,6 +174,12 @@ export function buildVolumeMounts(
     '.claude',
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
+  // Container runs as uid 1000 (node) and must be able to create session
+  // JSONLs under projects/-workspace-group/. Without this chown, Claude Code
+  // inside the container silently fails to persist sessions and every
+  // resume attempt returns "No conversation found with session ID X".
+  // Safe to ignore errors: non-root hosts can't chown and don't need to.
+  ensureContainerOwned(groupSessionsDir);
   const settingsFile = path.join(groupSessionsDir, 'settings.json');
   if (!fs.existsSync(settingsFile)) {
     fs.writeFileSync(
@@ -226,6 +270,11 @@ export function buildVolumeMounts(
     if (needsCopy) {
       fs.cpSync(agentRunnerSrc, groupAgentRunnerDir, { recursive: true });
     }
+  }
+  // Container runs as uid 1000 — agent-runner-src must be writable so the
+  // container entrypoint can recompile changes. Same pattern as groupSessionsDir.
+  if (fs.existsSync(groupAgentRunnerDir)) {
+    ensureContainerOwned(groupAgentRunnerDir);
   }
   mounts.push({
     hostPath: groupAgentRunnerDir,
