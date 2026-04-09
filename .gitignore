@@ -13,6 +13,9 @@ logs/
 groups/*
 !groups/main/
 !groups/global/
+!groups/telegram_main/
+groups/telegram_main/*
+!groups/telegram_main/topics.json.example
 
 # Secrets
 *.keys.json
