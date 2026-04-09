@@ -105,6 +105,7 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - Agents share progress in the group via `mcp__nanoclaw__send_message` with `sender` matching their agent name.
 - Agents coordinate with teammates via `SendMessage`.
 - The `sender` parameter must be consistent — always the same name so the bot identity stays stable.
+- When posting research, findings, or updates to the group, use the `topic` parameter matching the agent's domain (e.g. Money posts to topic "money", Transit to "transit", Bank to "bank"). This routes the message to the correct forum thread. Omit `topic` to post to the main chat (e.g. for cross-domain summaries or direct replies to the user).
 
 ---
 

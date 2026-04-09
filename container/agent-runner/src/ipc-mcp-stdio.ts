@@ -51,6 +51,12 @@ server.tool(
       .describe(
         'Your role/identity name (e.g. "Researcher"). When set, messages appear from a dedicated bot in Telegram.',
       ),
+    topic: z
+      .string()
+      .optional()
+      .describe(
+        'Topic thread name to post into (e.g. "bank", "transit"). Thread will be created automatically if it does not exist. Omit to post to the main chat.',
+      ),
   },
   async (args) => {
     const data: Record<string, string | undefined> = {
@@ -58,6 +64,7 @@ server.tool(
       chatJid,
       text: args.text,
       sender: args.sender || undefined,
+      topicName: args.topic || undefined,
       groupFolder,
       timestamp: new Date().toISOString(),
     };

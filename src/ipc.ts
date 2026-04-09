@@ -4,8 +4,13 @@ import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
 
 import { handleXIpc } from './x-skill.js';
-import { DATA_DIR, IPC_POLL_INTERVAL, TIMEZONE } from './config.js';
-import { sendPoolMessage } from './channels/telegram.js';
+import {
+  ASSISTANT_NAME,
+  DATA_DIR,
+  IPC_POLL_INTERVAL,
+  TIMEZONE,
+} from './config.js';
+import { sendPoolMessage, resolveTopicThreadId } from './channels/telegram.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
@@ -13,7 +18,7 @@ import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
-  sendMessage: (jid: string, text: string) => Promise<void>;
+  sendMessage: (jid: string, text: string, threadId?: number) => Promise<void>;
   sendReaction?: (
     jid: string,
     emoji: string,
@@ -92,15 +97,48 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   isMain ||
                   (targetGroup && targetGroup.folder === sourceGroup)
                 ) {
-                  if (data.sender && data.chatJid.startsWith('tg:')) {
+                  // Resolve topic thread ID if topicName is specified
+                  let topicThreadId: number | undefined;
+                  if (data.topicName && data.chatJid.startsWith('tg:')) {
+                    const resolved = await resolveTopicThreadId(
+                      sourceGroup,
+                      data.topicName,
+                      data.chatJid,
+                    );
+                    if (resolved !== null) {
+                      topicThreadId = resolved;
+                    }
+                  }
+
+                  // Use pool bots only for Telegram group chats (negative IDs)
+                  // AND only when the sender is a sub-agent (not the lead).
+                  // DMs and lead-agent messages always use the main bot.
+                  const isTelegramGroup = data.chatJid.startsWith('tg:-');
+                  // Match lead agent by ASSISTANT_NAME or LEAD_AGENT_NAME env var.
+                  // These can differ: ASSISTANT_NAME is the trigger word,
+                  // LEAD_AGENT_NAME is the display name the agent uses for itself.
+                  const leadName = (
+                    process.env.LEAD_AGENT_NAME || ASSISTANT_NAME
+                  ).toLowerCase();
+                  const senderLower = data.sender?.toLowerCase() ?? '';
+                  const isLeadAgent =
+                    !data.sender ||
+                    senderLower === ASSISTANT_NAME.toLowerCase() ||
+                    senderLower === leadName;
+                  if (data.sender && isTelegramGroup && !isLeadAgent) {
                     await sendPoolMessage(
                       data.chatJid,
                       data.text,
                       data.sender,
                       sourceGroup,
+                      topicThreadId,
                     );
                   } else {
-                    await deps.sendMessage(data.chatJid, data.text);
+                    await deps.sendMessage(
+                      data.chatJid,
+                      data.text,
+                      topicThreadId,
+                    );
                   }
                   logger.info(
                     { chatJid: data.chatJid, sourceGroup },
