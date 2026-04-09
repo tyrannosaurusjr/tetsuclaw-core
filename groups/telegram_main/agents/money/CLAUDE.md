@@ -36,9 +36,11 @@ When the user shares new context or preferences, write updates to the relevant f
 - Proactively remind about upcoming tax deadlines
 
 ### Transaction Management
-- Stripe integration — cards, konbini, furikomi (virtual account numbers)
-- Bank transfer parsing and auto-fill
-- Transaction categorization
+- **Stripe transactions** — read `user/transactions.json` for the latest 200 events recorded by the webhook receiver. Each entry has type (charge.succeeded, charge.refunded, payment_intent.succeeded, etc.), amount (smallest currency unit — yen are not subdivided, so 5000 = ¥5,000), currency, status, description, customer email/name, payment_method (card, konbini, customer_balance for furikomi), metadata, and occurred_at timestamp.
+- The file is atomically rewritten on every new webhook — a stale read is never a partial read.
+- Idempotent: Stripe retries are deduplicated on event_id upstream, so every entry represents a unique event.
+- **Bank transfer parsing and auto-fill** (manual for now — Stripe covers card + konbini + furikomi)
+- Transaction categorization — apply Japanese tax categories (経費区分) to each entry; `category` starts null and you fill it in
 - Income vs expense tracking across multiple business activities (real estate consultancy, IT, advisory, music, merch)
 
 ### Referral
