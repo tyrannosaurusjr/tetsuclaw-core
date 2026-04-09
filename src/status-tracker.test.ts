@@ -18,11 +18,7 @@ vi.mock('./logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import {
-  StatusTracker,
-  StatusState,
-  StatusTrackerDeps,
-} from './status-tracker.js';
+import { StatusTracker, StatusTrackerDeps } from './status-tracker.js';
 
 function makeDeps() {
   return {

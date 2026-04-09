@@ -69,6 +69,8 @@ import {
   handleSessionCommand,
   isSessionCommandAllowed,
 } from './session-commands.js';
+import { startSessionCleanup } from './session-cleanup.js';
+import { startStripeWebhookServer } from './stripe-webhook.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { parseImageReferences } from './image.js';
@@ -945,6 +947,7 @@ async function main(): Promise<void> {
   }
 
   // Start subsystems (independently of connection handler)
+  startStripeWebhookServer();
   startSchedulerLoop({
     registeredGroups: () => registeredGroups,
     getSessions: () => sessions,
@@ -1031,6 +1034,7 @@ async function main(): Promise<void> {
     });
   }
 
+  startSessionCleanup();
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();
   startMessageLoop().catch((err) => {

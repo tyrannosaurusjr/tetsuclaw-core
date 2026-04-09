@@ -105,6 +105,25 @@ function createSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_reactions_reactor ON reactions(reactor_jid);
     CREATE INDEX IF NOT EXISTS idx_reactions_emoji ON reactions(emoji);
     CREATE INDEX IF NOT EXISTS idx_reactions_timestamp ON reactions(timestamp);
+
+    CREATE TABLE IF NOT EXISTS stripe_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      stripe_event_id TEXT UNIQUE NOT NULL,
+      stripe_object_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL,
+      status TEXT NOT NULL,
+      description TEXT,
+      customer_email TEXT,
+      customer_name TEXT,
+      payment_method TEXT,
+      metadata_json TEXT,
+      category TEXT,
+      occurred_at INTEGER NOT NULL,
+      received_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_stripe_occurred ON stripe_transactions(occurred_at DESC);
   `);
 
   // Add context_mode column if it doesn't exist (migration for existing DBs)
@@ -162,6 +181,17 @@ function createSchema(database: Database.Database): void {
     database.exec(
       `UPDATE chats SET channel = 'telegram', is_group = 0 WHERE jid LIKE 'tg:%'`,
     );
+  } catch {
+    /* columns already exist */
+  }
+
+  // Add reply context columns if they don't exist (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE messages ADD COLUMN reply_to_message_id TEXT`);
+    database.exec(
+      `ALTER TABLE messages ADD COLUMN reply_to_message_content TEXT`,
+    );
+    database.exec(`ALTER TABLE messages ADD COLUMN reply_to_sender_name TEXT`);
   } catch {
     /* columns already exist */
   }
@@ -293,7 +323,7 @@ export function setLastGroupSync(): void {
  */
 export function storeMessage(msg: NewMessage): void {
   db.prepare(
-    `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message, reply_to_message_id, reply_to_message_content, reply_to_sender_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     msg.id,
     msg.chat_jid,
@@ -303,6 +333,9 @@ export function storeMessage(msg: NewMessage): void {
     msg.timestamp,
     msg.is_from_me ? 1 : 0,
     msg.is_bot_message ? 1 : 0,
+    msg.reply_to_message_id ?? null,
+    msg.reply_to_message_content ?? null,
+    msg.reply_to_sender_name ?? null,
   );
 }
 
@@ -344,7 +377,8 @@ export function getNewMessages(
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp
+    SELECT id, chat_jid, sender, sender_name, content, timestamp,
+           reply_to_message_id, reply_to_message_content, reply_to_sender_name
     FROM messages
     WHERE timestamp > ? AND chat_jid IN (${placeholders})
       AND is_bot_message = 0 AND content NOT LIKE ?
@@ -393,7 +427,8 @@ export function getMessagesSince(
       .all(chatJid, sinceTimestamp, `${botPrefix}:%`, limit) as NewMessage[];
   }
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp
+    SELECT id, chat_jid, sender, sender_name, content, timestamp,
+           reply_to_message_id, reply_to_message_content, reply_to_sender_name
     FROM messages
     WHERE chat_jid = ? AND timestamp > ?
       AND is_bot_message = 0 AND content NOT LIKE ?
@@ -884,4 +919,70 @@ function migrateJsonState(): void {
       }
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Stripe transactions
+// ─────────────────────────────────────────────────────────────
+
+export interface StripeTransaction {
+  id?: number;
+  stripe_event_id: string;
+  stripe_object_id: string;
+  event_type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  description: string | null;
+  customer_email: string | null;
+  customer_name: string | null;
+  payment_method: string | null;
+  metadata_json: string | null;
+  category: string | null;
+  occurred_at: number;
+  received_at: number;
+}
+
+/**
+ * Insert a Stripe transaction. Returns true if inserted, false if the event
+ * was already stored (idempotent on stripe_event_id). Stripe retries webhooks
+ * on 5xx responses, so idempotency is load-bearing.
+ */
+export function insertStripeTransaction(tx: StripeTransaction): boolean {
+  const result = db
+    .prepare(
+      `INSERT OR IGNORE INTO stripe_transactions (
+        stripe_event_id, stripe_object_id, event_type, amount, currency,
+        status, description, customer_email, customer_name, payment_method,
+        metadata_json, category, occurred_at, received_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      tx.stripe_event_id,
+      tx.stripe_object_id,
+      tx.event_type,
+      tx.amount,
+      tx.currency,
+      tx.status,
+      tx.description,
+      tx.customer_email,
+      tx.customer_name,
+      tx.payment_method,
+      tx.metadata_json,
+      tx.category,
+      tx.occurred_at,
+      tx.received_at,
+    );
+  return result.changes > 0;
+}
+
+/** Get the most recent N Stripe transactions, newest first. */
+export function getRecentStripeTransactions(limit = 100): StripeTransaction[] {
+  return db
+    .prepare(
+      `SELECT * FROM stripe_transactions
+       ORDER BY occurred_at DESC
+       LIMIT ?`,
+    )
+    .all(limit) as StripeTransaction[];
 }

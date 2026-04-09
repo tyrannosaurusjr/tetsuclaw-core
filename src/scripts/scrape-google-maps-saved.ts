@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck — page.evaluate() callbacks run in browser context with DOM types
 // that aren't available in this Node.js tsconfig.
 /**

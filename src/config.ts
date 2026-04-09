@@ -10,6 +10,9 @@ const envConfig = readEnvFile([
   'ASSISTANT_HAS_OWN_NUMBER',
   'OLLAMA_ADMIN_TOOLS',
   'ONECLI_URL',
+  'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_WEBHOOK_PORT',
+  'STRIPE_EXPORT_GROUP',
   'TELEGRAM_BOT_POOL',
   'TZ',
 ]);
@@ -99,6 +102,17 @@ function resolveConfigTimezone(): string {
   return 'UTC';
 }
 export const TIMEZONE = resolveConfigTimezone();
+
+// Stripe webhook receiver — opt-in. Server only starts if STRIPE_WEBHOOK_SECRET is set.
+export const STRIPE_WEBHOOK_SECRET =
+  process.env.STRIPE_WEBHOOK_SECRET || envConfig.STRIPE_WEBHOOK_SECRET || '';
+export const STRIPE_WEBHOOK_PORT = parseInt(
+  process.env.STRIPE_WEBHOOK_PORT || envConfig.STRIPE_WEBHOOK_PORT || '3101',
+  10,
+);
+// Which group folder receives the transactions.json mirror file. Defaults to main.
+export const STRIPE_EXPORT_GROUP =
+  process.env.STRIPE_EXPORT_GROUP || envConfig.STRIPE_EXPORT_GROUP || 'main';
 
 export const TELEGRAM_BOT_POOL = (
   process.env.TELEGRAM_BOT_POOL ||

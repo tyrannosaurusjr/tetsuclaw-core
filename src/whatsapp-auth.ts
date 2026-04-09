@@ -7,7 +7,6 @@
  * Usage: npx tsx src/whatsapp-auth.ts
  */
 import fs from 'fs';
-import path from 'path';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import readline from 'readline';
@@ -138,7 +137,9 @@ async function connectSocket(
       // Clean up QR file now that we're connected
       try {
         fs.unlinkSync(QR_FILE);
-      } catch {}
+      } catch {
+        /* file may not exist */
+      }
       console.log('\n✓ Successfully authenticated with WhatsApp!');
       console.log('  Credentials saved to store/auth/');
       console.log('  You can now start the NanoClaw service.\n');
@@ -157,10 +158,14 @@ async function authenticate(): Promise<void> {
   // Clean up any stale QR/status files from previous runs
   try {
     fs.unlinkSync(QR_FILE);
-  } catch {}
+  } catch {
+    /* file may not exist */
+  }
   try {
     fs.unlinkSync(STATUS_FILE);
-  } catch {}
+  } catch {
+    /* file may not exist */
+  }
 
   let phoneNumber = phoneArg;
   if (usePairingCode && !phoneNumber) {
