@@ -13,6 +13,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 import {
@@ -27,6 +28,62 @@ import {
   StripeTransaction,
 } from './db.js';
 import { logger } from './logger.js';
+
+// Supabase client for dual-writing Stripe transactions.
+// Gracefully degrades if env vars are not set.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_USER_ID = process.env.SUPABASE_USER_ID;
+
+let supabase: SupabaseClient | null = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+}
+
+/**
+ * Upsert a Stripe transaction to Supabase.
+ * Uses stripe_event_id as the conflict key for idempotency.
+ * Failures are logged but never block the primary SQLite pipeline.
+ */
+async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
+  if (!supabase || !SUPABASE_USER_ID) return;
+
+  const isIncome = !tx.event_type.includes('refund') && !tx.event_type.includes('failed');
+  const { error } = await supabase.from('transactions').upsert(
+    {
+      user_id: SUPABASE_USER_ID,
+      date: new Date(tx.occurred_at).toISOString().split('T')[0],
+      description: tx.description || `Stripe ${tx.event_type}`,
+      description_en: tx.description || `Stripe ${tx.event_type}`,
+      amount: tx.amount,
+      currency: tx.currency.toUpperCase(),
+      type: isIncome ? 'Income' : 'Expense',
+      category: tx.category || (isIncome ? 'income_business' : null),
+      payment_method: tx.payment_method,
+      source: 'Stripe',
+      institution: 'Stripe',
+      filing_status: 'Pending',
+      origin: 'stripe',
+      stripe_event_id: tx.stripe_event_id,
+      notes: tx.customer_email
+        ? `Customer: ${tx.customer_name || ''} <${tx.customer_email}>`
+        : null,
+    },
+    { onConflict: 'stripe_event_id' },
+  );
+
+  if (error) {
+    logger.warn(
+      { error: error.message, stripeEventId: tx.stripe_event_id },
+      'Supabase upsert failed (non-blocking)',
+    );
+  } else {
+    logger.info(
+      { stripeEventId: tx.stripe_event_id },
+      'Stripe transaction mirrored to Supabase',
+    );
+  }
+}
 
 // Events we actually care about. Anything else returns 200 and is dropped.
 const HANDLED_EVENTS = new Set<string>([
@@ -181,6 +238,10 @@ export function processEvent(event: Stripe.Event): boolean {
   const inserted = insertStripeTransaction(tx);
   if (inserted) {
     exportTransactionsFile();
+    // Dual-write to Supabase (fire-and-forget, never blocks the webhook response)
+    upsertToSupabase(tx).catch((err) =>
+      logger.warn({ err: String(err) }, 'Supabase dual-write threw unexpectedly'),
+    );
     logger.info(
       {
         eventId: event.id,
