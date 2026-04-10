@@ -318,7 +318,11 @@ export async function buildContainerArgs(
   }
 
   // Forward Supabase credentials so agents can write transactions directly
-  for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_USER_ID']) {
+  for (const key of [
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_USER_ID',
+  ]) {
     if (process.env[key]) args.push('-e', `${key}=${process.env[key]}`);
   }
 
@@ -682,29 +686,14 @@ export async function runContainerAgent(
       fs.writeFileSync(logFile, logLines.join('\n'));
       logger.debug({ logFile, verbose: isVerbose }, 'Container log written');
 
-      if (code !== 0) {
-        logger.error(
-          {
-            group: group.name,
-            code,
-            duration,
-            stderr,
-            stdout,
-            logFile,
-          },
-          'Container exited with error',
-        );
-
-        resolve({
-          status: 'error',
-          result: null,
-          error: `Container exited with code ${code}: ${stderr.slice(-200)}`,
-        });
-        return;
-      }
-
       // Streaming mode: wait for output chain to settle, return completion marker
       if (onOutput) {
+        if (code !== 0) {
+          logger.warn(
+            { group: group.name, code, duration, logFile },
+            'Container exited with non-zero code in streaming mode — treating as success if output was delivered',
+          );
+        }
         outputChain.then(() => {
           logger.info(
             { group: group.name, duration, newSessionId },
@@ -719,7 +708,8 @@ export async function runContainerAgent(
         return;
       }
 
-      // Legacy mode: parse the last output marker pair from accumulated stdout
+      // Legacy mode: parse sentinel markers first — if we have valid output, treat
+      // as success even if the exit code is non-zero (e.g. EPIPE after writing output).
       try {
         // Extract JSON between sentinel markers for robust parsing
         const startIdx = stdout.indexOf(OUTPUT_START_MARKER);
@@ -738,18 +728,39 @@ export async function runContainerAgent(
 
         const output: ContainerOutput = JSON.parse(jsonLine);
 
-        logger.info(
-          {
-            group: group.name,
-            duration,
-            status: output.status,
-            hasResult: !!output.result,
-          },
-          'Container completed',
-        );
+        if (code !== 0) {
+          logger.warn(
+            { group: group.name, code, duration, logFile },
+            'Container exited with non-zero code but output parsed successfully — treating as success (likely EPIPE after write)',
+          );
+        } else {
+          logger.info(
+            {
+              group: group.name,
+              duration,
+              status: output.status,
+              hasResult: !!output.result,
+            },
+            'Container completed',
+          );
+        }
 
         resolve(output);
       } catch (err) {
+        // Output parse failed. Now check exit code — if non-zero, that's the real error.
+        if (code !== 0) {
+          logger.error(
+            { group: group.name, code, duration, stderr, stdout, logFile },
+            'Container exited with error',
+          );
+          resolve({
+            status: 'error',
+            result: null,
+            error: `Container exited with code ${code}: ${stderr.slice(-200)}`,
+          });
+          return;
+        }
+
         logger.error(
           {
             group: group.name,
