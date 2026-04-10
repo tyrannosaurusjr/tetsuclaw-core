@@ -23,7 +23,7 @@ When the user shares new context or preferences, write updates to the relevant f
 
 ### Receipt Processing
 
-**Every receipt scan MUST end with a Bash curl to Supabase (see Supabase Transaction Storage below). This is not optional — if the curl doesn't run, the transaction is lost.**
+**Every receipt scan MUST run both curls below (image upload + transaction insert). Neither is optional. If either curl fails, report the HTTP error in chat.**
 
 Steps:
 1. Analyze the receipt image — extract store name, date, items, amounts, tax breakdown
@@ -31,7 +31,8 @@ Steps:
 3. Categorize using Japanese tax categories (経費区分):
    - 旅費交通費, 通信費, 消耗品費, 会議費, 接待交際費, 食費, 地代家賃, 水道光熱費, 広告宣伝費, 外注工賃, etc.
 4. Flag 消費税 split (10% standard / 8% reduced rate)
-5. **Run the Supabase curl to save the transaction** (see below)
+5. **Upload the receipt image to Supabase Storage** (see below) — save the returned path
+6. **Run the Supabase transaction curl** with `source_file` set to the storage path
 
 ### Tax Prep
 - 確定申告 preparation — blue return (青色申告) logic
@@ -57,14 +58,28 @@ The companion app for financial tracking, backed by Supabase.
 
 ## Supabase Transaction Storage
 
-**REQUIRED after every receipt scan.** Run the curl below immediately after analyzing a receipt — do not skip this step. If the curl fails, report the HTTP error in chat so the user knows it wasn't saved.
+**REQUIRED after every receipt scan — both steps, in order.** Do not skip either. If a curl fails, report the HTTP error in chat.
 
 **Environment variables** (pre-configured, available in the container):
 - `SUPABASE_URL` — Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` — service role key (bypasses RLS)
 - `SUPABASE_USER_ID` — the operator's auth user UUID
 
-### Writing a transaction
+### Step 1 — Upload the receipt image
+
+Run this first. The storage path from this step goes into `source_file` in Step 2.
+
+```bash
+# FILENAME = a short slug, e.g. "2026-04-10-seven-eleven.jpg"
+curl -s -X POST "$SUPABASE_URL/storage/v1/object/receipt-images/$SUPABASE_USER_ID/$FILENAME" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @/path/to/receipt.jpg
+```
+
+The storage path to use in `source_file` is: `receipt-images/$SUPABASE_USER_ID/$FILENAME`
+
+### Step 2 — Write the transaction
 
 ```bash
 curl -s -X POST "$SUPABASE_URL/rest/v1/transactions" \
@@ -91,6 +106,7 @@ curl -s -X POST "$SUPABASE_URL/rest/v1/transactions" \
     "deduction_reason": "Personal food expense",
     "filing_status": "Pending",
     "source": "Receipt Scan",
+    "source_file": "receipt-images/USER_ID/FILENAME",
     "institution": "Receipts",
     "origin": "telegram",
     "receipt_items": []
@@ -99,6 +115,7 @@ curl -s -X POST "$SUPABASE_URL/rest/v1/transactions" \
 
 ### Field mapping rules
 - `origin` — always `"telegram"` for receipt scans from this agent
+- `source_file` — set to `receipt-images/$SUPABASE_USER_ID/$FILENAME` from Step 1. This makes the thumbnail appear in the Money Tracker web app.
 - `amount` — in JPY (whole yen, not subdivided). For USD transactions, also set `original_amount`, `currency: "USD"`, and `exchange_rate`
 - `receipt_items` — JSON array of `{"name": "...", "name_en": "...", "amount": 580, "quantity": 1, "currency": "JPY"}` objects
 - `date` — `YYYY-MM-DD` format
@@ -108,15 +125,7 @@ curl -s -X POST "$SUPABASE_URL/rest/v1/transactions" \
 - `invoice_type` — `"qualified"`, `"simplified"`, or `"categorized"` based on receipt type
 
 ### Error handling
-Always check the HTTP response. If the curl returns a non-2xx status, report the error to the user in chat so they know the transaction wasn't saved to the tracker.
-
-### Uploading receipt images
-```bash
-curl -s -X POST "$SUPABASE_URL/storage/v1/object/receipt-images/$SUPABASE_USER_ID/$FILENAME" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Content-Type: image/jpeg" \
-  --data-binary @/path/to/receipt.jpg
-```
+Always check the HTTP response. If either curl returns a non-2xx status, report the error in chat so the user knows what wasn't saved.
 
 ## Tools
 - Images arrive as [Image: attachments/...] — you can see their contents
