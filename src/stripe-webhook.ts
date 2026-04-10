@@ -48,7 +48,8 @@ if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
 async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
   if (!supabase || !SUPABASE_USER_ID) return;
 
-  const isIncome = !tx.event_type.includes('refund') && !tx.event_type.includes('failed');
+  const isIncome =
+    !tx.event_type.includes('refund') && !tx.event_type.includes('failed');
   const { error } = await supabase.from('transactions').upsert(
     {
       user_id: SUPABASE_USER_ID,
@@ -86,11 +87,14 @@ async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
 }
 
 // Events we actually care about. Anything else returns 200 and is dropped.
+// invoice.paid fires when a customer actually pays — this is the moment money
+// arrives, not when an invoice is issued or a charge is attempted.
+// charge.succeeded is kept only for direct (non-invoice) charges.
 const HANDLED_EVENTS = new Set<string>([
-  'charge.succeeded',
+  'invoice.paid',
+  'charge.succeeded', // filtered in normalizeEvent: skipped when invoice != null
   'charge.refunded',
   'charge.failed',
-  'payment_intent.succeeded',
   'payment_intent.payment_failed',
 ]);
 
@@ -109,12 +113,57 @@ function readRawBody(req: http.IncomingMessage): Promise<Buffer> {
 export function normalizeEvent(event: Stripe.Event): StripeTransaction | null {
   const obj = event.data.object as
     | Stripe.Charge
+    | Stripe.Invoice
     | Stripe.PaymentIntent
     | Record<string, unknown>;
   const received_at = Date.now();
   const occurred_at = (event.created ?? Math.floor(received_at / 1000)) * 1000;
 
-  // Common extraction — charges and payment intents share most fields.
+  // charge.succeeded is only recorded when NOT tied to an invoice.
+  // Invoice payments are captured via invoice.paid instead — that fires
+  // when money actually arrives, not when the charge is attempted.
+  if (
+    event.type === 'charge.succeeded' &&
+    (obj as { invoice?: unknown }).invoice != null
+  ) {
+    return null;
+  }
+
+  // invoice.paid — extract from Invoice object shape.
+  if (event.type === 'invoice.paid') {
+    const inv = obj as Stripe.Invoice;
+    const amount = typeof inv.amount_paid === 'number' ? inv.amount_paid : 0;
+    const currency =
+      typeof inv.currency === 'string' ? inv.currency : 'unknown';
+    const customer_email =
+      typeof inv.customer_email === 'string' ? inv.customer_email : null;
+    const description =
+      inv.description ||
+      (inv.number ? `Invoice ${inv.number}` : 'Invoice payment');
+    const metadata = inv.metadata;
+    const metadata_json =
+      metadata && Object.keys(metadata).length > 0
+        ? JSON.stringify(metadata)
+        : null;
+    return {
+      stripe_event_id: event.id,
+      stripe_object_id: inv.id ?? event.id,
+      event_type: event.type,
+      amount,
+      currency,
+      status: 'paid',
+      description,
+      customer_email,
+      customer_name: null,
+      payment_method: null,
+      metadata_json,
+      category: 'income_business',
+      occurred_at,
+      received_at,
+    };
+  }
+
+  // Charges and payment intents share most fields.
   const amount =
     typeof (obj as { amount?: unknown }).amount === 'number'
       ? ((obj as { amount: number }).amount as number)
@@ -240,7 +289,10 @@ export function processEvent(event: Stripe.Event): boolean {
     exportTransactionsFile();
     // Dual-write to Supabase (fire-and-forget, never blocks the webhook response)
     upsertToSupabase(tx).catch((err) =>
-      logger.warn({ err: String(err) }, 'Supabase dual-write threw unexpectedly'),
+      logger.warn(
+        { err: String(err) },
+        'Supabase dual-write threw unexpectedly',
+      ),
     );
     logger.info(
       {
