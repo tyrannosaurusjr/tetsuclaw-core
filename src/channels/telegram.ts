@@ -8,6 +8,12 @@ import { readEnvFile } from '../env.js';
 import { processImage } from '../image.js';
 import { resolveGroupFolderPath } from '../group-folder.js';
 import { logger } from '../logger.js';
+import {
+  getThreadId,
+  loadTopics,
+  saveTopics,
+  upsertTopic,
+} from '../topics-registry.js';
 import { transcribeBuffer } from '../transcription.js';
 import { registerChannel, ChannelOpts } from './registry.js';
 import {
@@ -60,9 +66,9 @@ const chatThreadId = new Map<string, number>();
 
 /**
  * Resolve a topic name to a Telegram forum thread ID.
- * Reads topics.json from the group folder. If the topic has a cached thread ID,
- * returns it. Otherwise creates the forum topic via the Telegram API and caches
- * the ID back to topics.json.
+ * Delegates to the topics-registry module for v2-aware load/save.
+ * If the topic has a cached thread ID, returns it. Otherwise creates
+ * the forum topic via the Telegram API and persists the entry.
  */
 export async function resolveTopicThreadId(
   groupFolder: string,
@@ -75,21 +81,12 @@ export async function resolveTopicThreadId(
   }
 
   const groupDir = resolveGroupFolderPath(groupFolder);
-  const topicsPath = path.join(groupDir, 'topics.json');
-
-  let topics: Record<string, number | null> = {};
-  try {
-    if (fs.existsSync(topicsPath)) {
-      topics = JSON.parse(fs.readFileSync(topicsPath, 'utf-8'));
-    }
-  } catch (err) {
-    logger.error({ err, topicsPath }, 'Failed to read topics.json');
-    return null;
-  }
+  const registry = loadTopics(groupDir);
 
   // Check if we already have a thread ID for this topic
-  if (topics[topicName] !== null && topics[topicName] !== undefined) {
-    return topics[topicName]!;
+  const cached = getThreadId(registry, topicName);
+  if (cached !== null) {
+    return cached;
   }
 
   // Create the forum topic via Telegram API
@@ -98,9 +95,9 @@ export async function resolveTopicThreadId(
     const result = await mainBotApi.createForumTopic(numericId, topicName);
     const threadId = result.message_thread_id;
 
-    // Cache the thread ID
-    topics[topicName] = threadId;
-    fs.writeFileSync(topicsPath, JSON.stringify(topics, null, 2) + '\n');
+    // Persist via registry (atomic write, v2 schema)
+    upsertTopic(registry, topicName, { thread_id: threadId, source: 'agent' });
+    saveTopics(groupDir, registry);
     logger.info(
       { topicName, threadId, chatId, groupFolder },
       'Created forum topic and cached thread ID',

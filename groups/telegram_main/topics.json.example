@@ -1,15 +1,109 @@
 {
-  "bank": null,
-  "biz": null,
-  "comms": null,
-  "gov": null,
-  "guide": null,
-  "health": null,
-  "legal": null,
-  "money": null,
-  "people": null,
-  "property": null,
-  "secretary": null,
-  "transit": null,
-  "words": null
+  "version": 2,
+  "topics": {
+    "bank": {
+      "thread_id": null,
+      "subjects": ["banking", "transfers", "furikomi", "ATM", "accounts"],
+      "agents": ["money", "docs"],
+      "description": "Banking operations, transfers, account management",
+      "created_at": "",
+      "source": "manual"
+    },
+    "biz": {
+      "thread_id": null,
+      "subjects": ["business", "company", "incorporation", "contracts", "clients"],
+      "agents": ["legal", "money", "people", "docs"],
+      "description": "Business operations, company admin, client management",
+      "created_at": "",
+      "source": "manual"
+    },
+    "comms": {
+      "thread_id": null,
+      "subjects": ["communications", "email", "messaging", "content", "copy"],
+      "agents": ["words", "people"],
+      "description": "Communications, content drafting, outreach",
+      "created_at": "",
+      "source": "manual"
+    },
+    "gov": {
+      "thread_id": null,
+      "subjects": ["government", "bureaucracy", "visa", "immigration", "city hall", "ward office"],
+      "agents": ["legal", "docs", "words"],
+      "description": "Government interactions, bureaucratic processes, visa and immigration",
+      "created_at": "",
+      "source": "manual"
+    },
+    "guide": {
+      "thread_id": null,
+      "subjects": ["research", "scouting", "market intel", "news", "competitive analysis"],
+      "agents": ["intel", "words"],
+      "description": "Research, scouting, market intelligence",
+      "created_at": "",
+      "source": "manual"
+    },
+    "health": {
+      "thread_id": null,
+      "subjects": ["medical", "clinics", "insurance", "prescriptions", "doctors"],
+      "agents": ["health", "docs", "words"],
+      "description": "Medical access, health insurance, clinic navigation",
+      "created_at": "",
+      "source": "manual"
+    },
+    "legal": {
+      "thread_id": null,
+      "subjects": ["law", "contracts", "compliance", "disputes", "advisors"],
+      "agents": ["legal", "docs"],
+      "description": "Legal matters, contract review, compliance, advisor routing",
+      "created_at": "",
+      "source": "manual"
+    },
+    "money": {
+      "thread_id": null,
+      "subjects": ["tax", "accounting", "receipts", "expenses", "invoices", "確定申告"],
+      "agents": ["money", "docs"],
+      "description": "Tax, accounting, expense tracking, financial reporting",
+      "created_at": "",
+      "source": "manual"
+    },
+    "people": {
+      "thread_id": null,
+      "subjects": ["contacts", "networking", "relationships", "introductions", "CRM"],
+      "agents": ["people", "words"],
+      "description": "Contact management, networking, relationship tracking",
+      "created_at": "",
+      "source": "manual"
+    },
+    "property": {
+      "thread_id": null,
+      "subjects": ["housing", "rental", "akiya", "real estate", "lease", "neighborhood"],
+      "agents": ["intel", "docs", "legal"],
+      "description": "Housing search, real estate, lease review, neighborhood research",
+      "created_at": "",
+      "source": "manual"
+    },
+    "secretary": {
+      "thread_id": null,
+      "subjects": ["schedule", "calendar", "reminders", "deadlines", "daily briefing"],
+      "agents": ["docs", "words"],
+      "description": "Scheduling, reminders, daily briefings, workflow management",
+      "created_at": "",
+      "source": "manual"
+    },
+    "transit": {
+      "thread_id": null,
+      "subjects": ["trains", "travel", "routes", "shinkansen", "flights", "ferry", "IC card"],
+      "agents": ["transit", "intel"],
+      "description": "Transportation planning, route research, travel logistics",
+      "created_at": "",
+      "source": "manual"
+    },
+    "words": {
+      "thread_id": null,
+      "subjects": ["writing", "translation", "copywriting", "blog", "SEO", "drafts"],
+      "agents": ["words", "intel"],
+      "description": "Content creation, translation, copywriting, publishing",
+      "created_at": "",
+      "source": "manual"
+    }
+  }
 }
