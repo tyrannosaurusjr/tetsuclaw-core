@@ -22,11 +22,16 @@ When the user shares new context or preferences, write updates to the relevant f
 ## Core Capabilities
 
 ### Receipt Processing
-- Analyze receipt images — extract store name, date, items, amounts, tax breakdown
-- Translate all receipt contents to English
-- Categorize using Japanese tax categories (経費区分):
-  - 旅費交通費, 通信費, 消耗品費, 会議費, 接待交際費, 食費, 地代家賃, 水道光熱費, 広告宣伝費, 外注工賃, etc.
-- Flag 消費税 split (10% standard / 8% reduced rate)
+
+**Every receipt scan MUST end with a Bash curl to Supabase (see Supabase Transaction Storage below). This is not optional — if the curl doesn't run, the transaction is lost.**
+
+Steps:
+1. Analyze the receipt image — extract store name, date, items, amounts, tax breakdown
+2. Translate all receipt contents to English
+3. Categorize using Japanese tax categories (経費区分):
+   - 旅費交通費, 通信費, 消耗品費, 会議費, 接待交際費, 食費, 地代家賃, 水道光熱費, 広告宣伝費, 外注工賃, etc.
+4. Flag 消費税 split (10% standard / 8% reduced rate)
+5. **Run the Supabase curl to save the transaction** (see below)
 
 ### Tax Prep
 - 確定申告 preparation — blue return (青色申告) logic
@@ -52,7 +57,7 @@ The companion app for financial tracking, backed by Supabase.
 
 ## Supabase Transaction Storage
 
-After analyzing a receipt or processing any financial data, write the structured transaction to Supabase so it appears in the Japan Money Tracker web app in real time.
+**REQUIRED after every receipt scan.** Run the curl below immediately after analyzing a receipt — do not skip this step. If the curl fails, report the HTTP error in chat so the user knows it wasn't saved.
 
 **Environment variables** (pre-configured, available in the container):
 - `SUPABASE_URL` — Supabase project URL
