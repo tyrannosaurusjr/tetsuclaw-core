@@ -73,7 +73,9 @@ function isV2(data: unknown): data is TopicsV2 {
     return false;
   }
   const obj = data as Record<string, unknown>;
-  return obj.version === 2 && typeof obj.topics === 'object' && obj.topics !== null;
+  return (
+    obj.version === 2 && typeof obj.topics === 'object' && obj.topics !== null
+  );
 }
 
 export function migrateV1toV2(v1: Record<string, number | null>): TopicsV2 {
@@ -122,7 +124,10 @@ export function loadTopics(groupDir: string): TopicsV2 {
   } catch {
     // Corrupt JSON — quarantine the file
     const quarantinePath = topicsPath + '.corrupt-' + Date.now();
-    logger.error({ topicsPath, quarantinePath }, 'Corrupt topics.json, quarantining');
+    logger.error(
+      { topicsPath, quarantinePath },
+      'Corrupt topics.json, quarantining',
+    );
     try {
       fs.renameSync(topicsPath, quarantinePath);
     } catch (renameErr) {
@@ -139,17 +144,26 @@ export function loadTopics(groupDir: string): TopicsV2 {
     const migrated = migrateV1toV2(parsed);
     // Persist the migration immediately
     saveTopics(groupDir, migrated);
-    logger.info({ topicsPath, count: Object.keys(migrated.topics).length }, 'Migrated topics.json v1 → v2');
+    logger.info(
+      { topicsPath, count: Object.keys(migrated.topics).length },
+      'Migrated topics.json v1 → v2',
+    );
     return migrated;
   }
 
   // Unrecognized shape — quarantine
   const quarantinePath = topicsPath + '.corrupt-' + Date.now();
-  logger.error({ topicsPath, quarantinePath }, 'Unrecognized topics.json shape, quarantining');
+  logger.error(
+    { topicsPath, quarantinePath },
+    'Unrecognized topics.json shape, quarantining',
+  );
   try {
     fs.renameSync(topicsPath, quarantinePath);
   } catch (renameErr) {
-    logger.error({ renameErr }, 'Failed to quarantine unrecognized topics.json');
+    logger.error(
+      { renameErr },
+      'Failed to quarantine unrecognized topics.json',
+    );
   }
   return { version: 2, topics: {} };
 }
@@ -180,7 +194,8 @@ export function upsertTopic(
     subjects: entry.subjects ?? existing?.subjects ?? [],
     agents: entry.agents ?? existing?.agents ?? [],
     description: entry.description ?? existing?.description ?? '',
-    created_at: entry.created_at ?? existing?.created_at ?? new Date().toISOString(),
+    created_at:
+      entry.created_at ?? existing?.created_at ?? new Date().toISOString(),
     source: entry.source ?? existing?.source ?? 'manual',
   };
   return registry;
@@ -234,13 +249,19 @@ export function loadProposals(groupDir: string): ProposalsFile {
 }
 
 export function saveProposals(groupDir: string, file: ProposalsFile): void {
-  atomicWriteSync(proposalsPath(groupDir), JSON.stringify(file, null, 2) + '\n');
+  atomicWriteSync(
+    proposalsPath(groupDir),
+    JSON.stringify(file, null, 2) + '\n',
+  );
 }
 
 /**
  * Remove proposals older than TTL. Returns the pruned file.
  */
-export function pruneExpiredProposals(file: ProposalsFile, now?: Date): ProposalsFile {
+export function pruneExpiredProposals(
+  file: ProposalsFile,
+  now?: Date,
+): ProposalsFile {
   const cutoff = (now ?? new Date()).getTime() - PROPOSAL_TTL_MS;
   return {
     proposals: file.proposals.filter(

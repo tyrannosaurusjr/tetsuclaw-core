@@ -27,6 +27,32 @@ When the user shares new context or preferences, write updates to the relevant f
 - Categorize using Japanese tax categories (経費区分):
   - 旅費交通費, 通信費, 消耗品費, 会議費, 接待交際費, 食費, 地代家賃, 水道光熱費, 広告宣伝費, 外注工賃, etc.
 - Flag 消費税 split (10% standard / 8% reduced rate)
+- **After parsing any receipt, save it to Supabase** so it appears in the Japan Money Tracker web app. Use the save-transaction script:
+
+```bash
+echo '<JSON>' | npx tsx /workspace/project/scripts/save-transaction.ts
+```
+
+The JSON must be a single object with these fields (all camelCase):
+- `date` (YYYY-MM-DD, required)
+- `amount` (number in yen, required — NEVER use 0 unless the receipt explicitly shows ¥0)
+- `description` (original-language summary)
+- `descriptionEn` (English translation)
+- `vendor` (exact store name from receipt)
+- `vendorEn` (English translation)
+- `category` (one of: food, entertainment, travel, supplies, utilities, rent, communication, insurance, medical, education, advertising, professional, equipment, clothing, personal, subscription, bank_fee, tax_payment, income_salary, income_business, income_freelance, income_transfer, income_foreign, foreign_tax_credit, other)
+- `categoryLabel` (Japanese category label, e.g. 食費)
+- `categoryReason` (1 sentence: why this category)
+- `deductionReason` (1 sentence: deductibility reasoning)
+- `type` ("Expense" or "Income")
+- `taxRate` ("10%" or "8%")
+- `paymentMethod` ("Cash", "Credit Card", "Bank Transfer", "IC Card", or "QR Pay")
+- `currency` ("JPY" or "USD")
+- `receiptItems` (array of {name, nameEn, amount, quantity} for itemized receipts)
+
+If the receipt shows multiple items, use the **total amount** for the transaction and put the line items in `receiptItems`.
+
+If the script exits with an error, report it to the user immediately — do not silently discard it.
 
 ### Tax Prep
 - 確定申告 preparation — blue return (青色申告) logic

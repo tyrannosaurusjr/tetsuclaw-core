@@ -27,6 +27,12 @@
       "personal": "None specifically",
       "note": "Occasionally dines with people who have preferences — likes to be aware of their needs"
     },
+    "blacklist": [
+      {
+        "name": "SCHMATZ",
+        "reason": "Name sounds awful"
+      }
+    ],
     "station_proximity": {
       "acceptable_walk_minutes": 15,
       "if_amazing": 20

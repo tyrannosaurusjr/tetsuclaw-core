@@ -50,7 +50,19 @@ describe('loadTopics', () => {
   });
 
   it('loads v2 file as-is', () => {
-    const v2 = { version: 2, topics: { foo: { thread_id: 1, subjects: [], agents: [], description: '', created_at: '2026-01-01T00:00:00Z', source: 'manual' as const } } };
+    const v2 = {
+      version: 2,
+      topics: {
+        foo: {
+          thread_id: 1,
+          subjects: [],
+          agents: [],
+          description: '',
+          created_at: '2026-01-01T00:00:00Z',
+          source: 'manual' as const,
+        },
+      },
+    };
     fs.writeFileSync(path.join(tmpDir, 'topics.json'), JSON.stringify(v2));
     const result = loadTopics(tmpDir);
     expect(result.topics.foo.thread_id).toBe(1);
@@ -66,7 +78,9 @@ describe('loadTopics', () => {
     expect(result.topics.restaurants.source).toBe('migrated');
 
     // File on disk should now be v2
-    const onDisk = JSON.parse(fs.readFileSync(path.join(tmpDir, 'topics.json'), 'utf-8'));
+    const onDisk = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'topics.json'), 'utf-8'),
+    );
     expect(onDisk.version).toBe(2);
   });
 
@@ -91,7 +105,10 @@ describe('loadTopics', () => {
   });
 
   it('quarantines unrecognized shape', () => {
-    fs.writeFileSync(path.join(tmpDir, 'topics.json'), JSON.stringify([1, 2, 3]));
+    fs.writeFileSync(
+      path.join(tmpDir, 'topics.json'),
+      JSON.stringify([1, 2, 3]),
+    );
     const result = loadTopics(tmpDir);
     expect(result).toEqual({ version: 2, topics: {} });
     expect(fs.existsSync(path.join(tmpDir, 'topics.json'))).toBe(false);
@@ -214,7 +231,10 @@ describe('proposals', () => {
       ],
     };
     // At 11:31, the first proposal (11:00) is expired, the second (11:45) is not
-    const pruned = pruneExpiredProposals(file, new Date('2026-04-10T11:31:00Z'));
+    const pruned = pruneExpiredProposals(
+      file,
+      new Date('2026-04-10T11:31:00Z'),
+    );
     expect(pruned.proposals).toHaveLength(1);
     expect(pruned.proposals[0].name).toBe('bars');
   });
