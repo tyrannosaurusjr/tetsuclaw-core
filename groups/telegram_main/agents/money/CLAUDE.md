@@ -69,12 +69,16 @@ The companion app for financial tracking, backed by Supabase.
 
 Run this first. The storage path from this step goes into `source_file` in Step 2.
 
+**How to get the file path:** When the user sends a receipt photo, it appears in your context as `[Image: attachments/FILENAME]`. The actual file on disk is at `/workspace/group/attachments/FILENAME`. Use that exact filename — do not rename it or generate a slug.
+
 ```bash
-# FILENAME = a short slug, e.g. "2026-04-10-seven-eleven.jpg"
+# FILENAME = the exact filename from [Image: attachments/FILENAME], e.g. "photo_2026_04_10.jpg"
+ATTACHMENT_PATH="/workspace/group/attachments/$FILENAME"
+
 curl -s -X POST "$SUPABASE_URL/storage/v1/object/receipt-images/$SUPABASE_USER_ID/$FILENAME" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: image/jpeg" \
-  --data-binary @/path/to/receipt.jpg
+  --data-binary "@$ATTACHMENT_PATH"
 ```
 
 The storage path to use in `source_file` is: `receipt-images/$SUPABASE_USER_ID/$FILENAME`
@@ -126,6 +130,16 @@ curl -s -X POST "$SUPABASE_URL/rest/v1/transactions" \
 
 ### Error handling
 Always check the HTTP response. If either curl returns a non-2xx status, report the error in chat so the user knows what wasn't saved.
+
+### Telemetry — write a log entry after every scan
+
+After completing both curls (whether they succeeded or failed), append one line to `user/receipt_log.jsonl`. This is the audit trail.
+
+```bash
+# TX_ID = the "id" field from the Supabase response JSON, or "error" if insert failed
+# STORAGE_OK = true or false
+echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"file\":\"$FILENAME\",\"storage_ok\":$STORAGE_OK,\"tx_id\":\"$TX_ID\"}" >> /workspace/group/user/receipt_log.jsonl
+```
 
 ## Tools
 - Images arrive as [Image: attachments/...] — you can see their contents
