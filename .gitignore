@@ -16,6 +16,8 @@ groups/*
 !groups/telegram_main/
 groups/telegram_main/*
 !groups/telegram_main/topics.json.example
+!groups/review_board/
+!groups/review_board/**
 
 # Secrets
 *.keys.json
