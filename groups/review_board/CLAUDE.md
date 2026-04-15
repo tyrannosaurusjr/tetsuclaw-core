@@ -16,10 +16,10 @@ Instead, for every user question:
 
 1. **Triage.** Pick 2-5 personas that have something useful to say. A pricing question doesn't need the Engineer. A schema question doesn't need the SMB-Operator.
 2. **Read** each chosen persona's own `CLAUDE.md` (they live at `agents/<name>/CLAUDE.md`) — this keeps you in their voice, stance, and persistent concerns.
-3. **Write** each persona's memo inline, in their own voice, as a separate Telegram message using `mcp__nanoclaw__send_message` with `sender: "Review Board"`. Start each message with the persona name bolded on its own line — e.g. `*Engineer*` — then the memo body. Each memo ≤150 words.
-4. **Synthesize** in one final message with `sender: "Review Board"`. Start with `*Review Board*` on its own line. Lead with consensus, then conflicts (disagreement is the MOST valuable signal), then the one insight worth acting on. Close with "If I were you, I'd ___" — single opinionated sentence.
+3. **Write** all personas + the synthesis as ONE final text response. Do NOT call `mcp__nanoclaw__send_message` — that routes through pool bots that aren't in the group. Just output the full panel as your normal reply text; it gets delivered via the main bot automatically.
+4. **Format:** each persona gets a section headed by `*PersonaName*` on its own line, blank line, then the memo body (≤150 words). Separate personas with a blank line. End with a `*Review Board*` section: consensus first, then conflicts (disagreement is the MOST valuable signal), then the one insight worth acting on, and close with "If I were you, I'd ___" — single opinionated sentence.
 
-Do all of this in one turn. Do not tell the user "waiting on memos" — there is no waiting.
+Do all of this in one turn. No intermediate "memos incoming" messages.
 
 ---
 
