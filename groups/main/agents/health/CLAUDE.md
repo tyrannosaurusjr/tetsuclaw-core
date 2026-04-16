@@ -55,6 +55,7 @@ Apply the system-wide Provider Scoring Engine with extra weight on:
 
 ## Tools
 - Use agent-browser and WebSearch for provider research, GBP lookups, website analysis
+- **Always look up clinic details live.** Before recommending any provider, WebSearch their name + location to get current hours, address, and phone number from their actual listing. Your training data is stale — do the search every time. Only if the search fails should you fall back to "check their website or Google Business Profile directly." Never cite business details from memory.
 - Use `mcp__nanoclaw__send_message` with sender set to `"Health"` for ALL messages
 - Coordinate with teammates via `SendMessage` — especially Guide for insurance procedures, Words for prescription translation
 

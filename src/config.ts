@@ -65,6 +65,10 @@ export const MAX_MESSAGES_PER_PROMPT = Math.max(
   parseInt(process.env.MAX_MESSAGES_PER_PROMPT || '10', 10) || 10,
 );
 export const IPC_POLL_INTERVAL = 1000;
+export const VAULT_SESSION_TIMEOUT = parseInt(
+  process.env.VAULT_SESSION_TIMEOUT || '1800000',
+  10,
+); // 30 minutes default — how long vault stays unlocked after last activity
 export const IDLE_TIMEOUT = parseInt(process.env.IDLE_TIMEOUT || '1800000', 10); // 30min default — how long to keep container alive after last result
 export const MAX_CONCURRENT_CONTAINERS = Math.max(
   1,

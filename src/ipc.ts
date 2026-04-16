@@ -7,6 +7,7 @@ import { handleXIpc } from './x-skill.js';
 import {
   ASSISTANT_NAME,
   DATA_DIR,
+  GROUPS_DIR,
   IPC_POLL_INTERVAL,
   TIMEZONE,
 } from './config.js';
@@ -16,9 +17,16 @@ import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
+import { processVaultIpc } from './vault/ipc-handler.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string, threadId?: number) => Promise<void>;
+  sendDocument?: (
+    jid: string,
+    filePath: string,
+    filename: string,
+    caption?: string,
+  ) => Promise<void>;
   sendReaction?: (
     jid: string,
     emoji: string,
@@ -188,6 +196,51 @@ export function startIpcWatcher(deps: IpcDeps): void {
                     'Unauthorized IPC reaction attempt blocked',
                   );
                 }
+              } else if (
+                data.type === 'send_document' &&
+                data.chatJid &&
+                data.filePath &&
+                data.filename &&
+                deps.sendDocument
+              ) {
+                // Vault document retrieval: send a decrypted file to the user
+                const targetGroup = registeredGroups[data.chatJid];
+                if (
+                  isMain ||
+                  (targetGroup && targetGroup.folder === sourceGroup)
+                ) {
+                  try {
+                    await deps.sendDocument(
+                      data.chatJid,
+                      data.filePath,
+                      data.filename,
+                      data.caption,
+                    );
+                    logger.info(
+                      {
+                        chatJid: data.chatJid,
+                        filename: data.filename,
+                        sourceGroup,
+                      },
+                      'IPC document sent',
+                    );
+                  } catch (err) {
+                    logger.error(
+                      {
+                        chatJid: data.chatJid,
+                        filename: data.filename,
+                        sourceGroup,
+                        err,
+                      },
+                      'IPC document send failed',
+                    );
+                  }
+                } else {
+                  logger.warn(
+                    { chatJid: data.chatJid, sourceGroup },
+                    'Unauthorized IPC send_document attempt blocked',
+                  );
+                }
               }
               fs.unlinkSync(filePath);
             } catch (err) {
@@ -240,6 +293,46 @@ export function startIpcWatcher(deps: IpcDeps): void {
         }
       } catch (err) {
         logger.error({ err, sourceGroup }, 'Error reading IPC tasks directory');
+      }
+
+      // Process vault operations from this group's IPC directory
+      const vaultIpcDir = path.join(ipcBaseDir, sourceGroup, 'vault');
+      try {
+        if (fs.existsSync(vaultIpcDir)) {
+          const vaultFiles = fs
+            .readdirSync(vaultIpcDir)
+            .filter((f) => f.endsWith('.json'));
+          for (const file of vaultFiles) {
+            const filePath = path.join(vaultIpcDir, file);
+            try {
+              const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+              const groupDir = path.join(GROUPS_DIR, sourceGroup);
+              const resultsDir = path.join(
+                ipcBaseDir,
+                sourceGroup,
+                'vault_results',
+              );
+              await processVaultIpc(data, groupDir, sourceGroup, resultsDir, deps);
+              fs.unlinkSync(filePath);
+            } catch (err) {
+              logger.error(
+                { file, sourceGroup, err },
+                'Error processing vault IPC',
+              );
+              const errorDir = path.join(ipcBaseDir, 'errors');
+              fs.mkdirSync(errorDir, { recursive: true });
+              fs.renameSync(
+                filePath,
+                path.join(errorDir, `${sourceGroup}-vault-${file}`),
+              );
+            }
+          }
+        }
+      } catch (err) {
+        logger.error(
+          { err, sourceGroup },
+          'Error reading vault IPC directory',
+        );
       }
     }
 

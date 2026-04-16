@@ -1,7 +1,7 @@
 import fs from 'fs';
 import https from 'https';
 import path from 'path';
-import { Api, Bot } from 'grammy';
+import { Api, Bot, InputFile } from 'grammy';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { readEnvFile } from '../env.js';
@@ -9,6 +9,10 @@ import { processImage } from '../image.js';
 import { resolveGroupFolderPath } from '../group-folder.js';
 import { logger } from '../logger.js';
 import { transcribeBuffer } from '../transcription.js';
+import {
+  hasPendingPassphrase,
+  getPendingPassphraseCallback,
+} from '../vault/ipc-handler.js';
 import { registerChannel, ChannelOpts } from './registry.js';
 import {
   Channel,
@@ -262,6 +266,28 @@ export class TelegramChannel implements Channel {
       }
 
       const chatJid = `tg:${ctx.chat.id}`;
+
+      // Vault passphrase interception: if there's a pending unlock request
+      // for this chat, treat this message as the passphrase and consume it.
+      // The message is NOT stored or forwarded to the agent.
+      if (hasPendingPassphrase(chatJid)) {
+        const callback = getPendingPassphraseCallback(chatJid);
+        if (callback) {
+          const passphrase = ctx.message.text;
+          callback(passphrase);
+          // Delete the passphrase message from the chat for security
+          try {
+            await ctx.api.deleteMessage(ctx.chat.id, ctx.message.message_id);
+          } catch (err) {
+            logger.debug(
+              { chatJid, err },
+              'Could not delete passphrase message (may lack permissions)',
+            );
+          }
+          logger.info({ chatJid }, 'Vault passphrase intercepted and consumed');
+          return; // Do NOT process as a normal message
+        }
+      }
       if (ctx.message.message_thread_id) {
         chatThreadId.set(chatJid, ctx.message.message_thread_id);
       }
@@ -510,7 +536,15 @@ export class TelegramChannel implements Channel {
         doc?.mime_type === 'application/pdf' ||
         displayName.toLowerCase().endsWith('.pdf');
 
-      if (!isPdf) {
+      // Supported document extensions for download (vault + general use)
+      const DOWNLOADABLE_EXTENSIONS = new Set([
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+        '.txt', '.csv', '.jpg', '.jpeg', '.png',
+      ]);
+      const ext = path.extname(displayName).toLowerCase();
+      const isDownloadable = isPdf || DOWNLOADABLE_EXTENSIONS.has(ext);
+
+      if (!isDownloadable) {
         storeNonText(ctx, `[Document: ${displayName}]`);
         return;
       }
@@ -534,17 +568,26 @@ export class TelegramChannel implements Channel {
         const attachDir = path.join(groupDir, 'attachments');
         fs.mkdirSync(attachDir, { recursive: true });
         const safeName = path.basename(
-          doc?.file_name || `doc-${Date.now()}.pdf`,
+          doc?.file_name || `doc-${Date.now()}${ext || '.bin'}`,
         );
         const filePath = path.join(attachDir, safeName);
         fs.writeFileSync(filePath, buffer);
 
         const sizeKB = Math.round(buffer.length / 1024);
         const caption = ctx.message.caption || '';
-        const pdfRef = `[PDF: attachments/${safeName} (${sizeKB}KB)]\nUse: pdf-reader extract attachments/${safeName}`;
-        const content = caption ? `${caption}\n\n${pdfRef}` : pdfRef;
 
-        logger.info({ chatJid, filename: safeName }, 'Downloaded Telegram PDF');
+        let docRef: string;
+        if (isPdf) {
+          docRef = `[PDF: attachments/${safeName} (${sizeKB}KB)]\nUse: pdf-reader extract attachments/${safeName}`;
+        } else {
+          docRef = `[Document: attachments/${safeName} (${sizeKB}KB)]`;
+        }
+        const content = caption ? `${caption}\n\n${docRef}` : docRef;
+
+        logger.info(
+          { chatJid, filename: safeName },
+          'Downloaded Telegram document',
+        );
 
         const timestamp = new Date(ctx.message.date * 1000).toISOString();
         const senderName =
@@ -569,7 +612,7 @@ export class TelegramChannel implements Channel {
           is_from_me: false,
         });
       } catch (err) {
-        logger.error({ chatJid, err }, 'Failed to download Telegram PDF');
+        logger.error({ chatJid, err }, 'Failed to download Telegram document');
         storeNonText(ctx, `[Document: ${displayName}]`);
       }
     });
@@ -641,6 +684,49 @@ export class TelegramChannel implements Channel {
       logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Telegram message');
+    }
+  }
+
+  /**
+   * Send a document file to a Telegram chat.
+   * Used by the vault to deliver decrypted documents back to the user.
+   */
+  async sendDocument(
+    jid: string,
+    filePath: string,
+    filename: string,
+    caption?: string,
+  ): Promise<void> {
+    if (!this.bot) {
+      logger.warn('Telegram bot not initialized');
+      return;
+    }
+
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      const buffer = fs.readFileSync(filePath);
+      const threadOpts = chatThreadId.has(jid)
+        ? { message_thread_id: chatThreadId.get(jid)! }
+        : {};
+
+      await this.bot.api.sendDocument(
+        numericId,
+        new InputFile(buffer, filename),
+        {
+          ...threadOpts,
+          ...(caption ? { caption } : {}),
+        },
+      );
+      logger.info({ jid, filename }, 'Telegram document sent');
+
+      // Clean up temp file after sending
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // ignore cleanup failures
+      }
+    } catch (err) {
+      logger.error({ jid, filename, err }, 'Failed to send Telegram document');
     }
   }
 

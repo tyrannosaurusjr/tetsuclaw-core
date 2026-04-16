@@ -462,6 +462,7 @@ async function runQuery(
         'TodoWrite', 'ToolSearch', 'Skill',
         'NotebookEdit',
         'mcp__nanoclaw__*',
+        'mcp__vault__*',
         'mcp__ollama__*',
         'mcp__gmail__*',
       ],
@@ -477,6 +478,14 @@ async function runQuery(
             NANOCLAW_CHAT_JID: containerInput.chatJid,
             NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
+          },
+        },
+        vault: {
+          command: 'node',
+          args: [path.join(path.dirname(mcpServerPath), 'vault-mcp-stdio.js')],
+          env: {
+            NANOCLAW_CHAT_JID: containerInput.chatJid,
+            NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
           },
         },
         ollama: {

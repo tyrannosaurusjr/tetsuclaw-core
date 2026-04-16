@@ -99,6 +99,8 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - Results are **location-aware** — based on user's current location, not registered address
 - A provider's digital infrastructure is a proxy for foreigner-readiness
 
+**Verification rule:** When recommending a provider, you MUST look up their actual listing via WebSearch or WebFetch before presenting any details. Operating hours, prices, phone numbers, addresses — retrieve them live, don't recall them from memory. Your training data is stale and often wrong for business details. Do the search. Only if the search genuinely fails (no results, page won't load) should you fall back to "check their website/GBP directly for current hours." Fabricated business data is worse than no data.
+
 **Scoring signals (high → low weight):**
 
 | Signal | What to check |

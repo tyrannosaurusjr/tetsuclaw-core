@@ -26,6 +26,7 @@
     "@slack/bolt": "^4.3.0",
     "@slack/types": "^2.15.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "argon2": "^0.41.1",
     "better-sqlite3": "^11.8.1",
     "cron-parser": "^5.5.0",
     "google-auth-library": "^9.15.1",

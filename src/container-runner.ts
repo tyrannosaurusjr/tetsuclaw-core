@@ -251,6 +251,30 @@ export function buildVolumeMounts(
     readonly: false,
   });
 
+  // Vault directory: encrypted document storage (read-only in container).
+  // The agent can read vault.json and status.json for vault status, but all
+  // write operations go through IPC to the host where the key lives in memory.
+  const vaultDir = path.join(groupDir, 'vault');
+  fs.mkdirSync(vaultDir, { recursive: true });
+  ensureContainerOwned(vaultDir);
+  mounts.push({
+    hostPath: vaultDir,
+    containerPath: '/workspace/vault',
+    readonly: true,
+  });
+
+  // Vault IPC directories: vault requests + results
+  const vaultIpcDir = path.join(groupIpcDir, 'vault');
+  const vaultResultsDir = path.join(groupIpcDir, 'vault_results');
+  for (const dir of [vaultIpcDir, vaultResultsDir]) {
+    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.chownSync(dir, 1000, 1000);
+    } catch {
+      // ignore — non-root host can't chown
+    }
+  }
+
   // Copy agent-runner source into a per-group writable location so agents
   // can customize it (add tools, change behavior) without affecting other
   // groups. Recompiled on container startup via entrypoint.sh.
