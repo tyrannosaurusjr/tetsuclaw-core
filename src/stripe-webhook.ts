@@ -60,6 +60,8 @@ async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
       currency: tx.currency.toUpperCase(),
       type: isIncome ? 'Income' : 'Expense',
       category: tx.category || (isIncome ? 'income_business' : null),
+      tax_rate: null,
+      tax_deductible: !isIncome,
       payment_method: tx.payment_method,
       source: 'Stripe',
       institution: 'Stripe',
@@ -84,6 +86,20 @@ async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
       'Stripe transaction mirrored to Supabase',
     );
   }
+}
+
+// Stripe zero-decimal currencies — amounts are already whole units (no cents).
+// Everything else (USD, EUR, GBP, …) uses the smallest unit (cents) and must
+// be divided by 100 to get the major unit.
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW',
+  'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+]);
+
+function toMajorUnit(amount: number, currency: string): number {
+  return ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+    ? amount
+    : amount / 100;
 }
 
 // Events we actually care about. Anything else returns 200 and is dropped.
@@ -132,9 +148,12 @@ export function normalizeEvent(event: Stripe.Event): StripeTransaction | null {
   // invoice.paid — extract from Invoice object shape.
   if (event.type === 'invoice.paid') {
     const inv = obj as Stripe.Invoice;
-    const amount = typeof inv.amount_paid === 'number' ? inv.amount_paid : 0;
     const currency =
       typeof inv.currency === 'string' ? inv.currency : 'unknown';
+    const amount = toMajorUnit(
+      typeof inv.amount_paid === 'number' ? inv.amount_paid : 0,
+      currency,
+    );
     const customer_email =
       typeof inv.customer_email === 'string' ? inv.customer_email : null;
     const description =
@@ -164,14 +183,16 @@ export function normalizeEvent(event: Stripe.Event): StripeTransaction | null {
   }
 
   // Charges and payment intents share most fields.
-  const amount =
-    typeof (obj as { amount?: unknown }).amount === 'number'
-      ? ((obj as { amount: number }).amount as number)
-      : 0;
   const currency =
     typeof (obj as { currency?: unknown }).currency === 'string'
       ? ((obj as { currency: string }).currency as string)
       : 'unknown';
+  const amount = toMajorUnit(
+    typeof (obj as { amount?: unknown }).amount === 'number'
+      ? ((obj as { amount: number }).amount as number)
+      : 0,
+    currency,
+  );
   const status =
     typeof (obj as { status?: unknown }).status === 'string'
       ? ((obj as { status: string }).status as string)
