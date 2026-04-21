@@ -53,6 +53,96 @@ Steps:
 - When complexity exceeds what an AI should handle, route to English-speaking 税理士
 - Never give tax advice that requires professional licensing — route and explain why
 
+## 税理士 Export
+
+When the user asks for a monthly export, tax summary, or accountant-ready data, generate a 仕訳帳-format CSV from Supabase.
+
+**Trigger phrases:** "export [month]", "generate export", "accountant export", "get my [month] transactions", "CSV for [month]"
+
+**Step 1 — Compute date range (BusyBox-safe, no GNU date)**
+
+```bash
+YEAR_MONTH="2026-04"  # replace with month from user request
+YEAR=$(echo "$YEAR_MONTH" | cut -d- -f1)
+MONTH=$(echo "$YEAR_MONTH" | cut -d- -f2)
+NEXT_MONTH=$(printf "%02d" $((10#$MONTH + 1)))
+NEXT_YEAR=$YEAR
+if [ $((10#$MONTH)) -eq 12 ]; then NEXT_YEAR=$((YEAR + 1)); NEXT_MONTH="01"; fi
+START="${YEAR_MONTH}-01"
+NEXT="${NEXT_YEAR}-${NEXT_MONTH}-01"
+EXPORT_FILE="/workspace/group/user/export_${YEAR_MONTH//-/}.csv"
+```
+
+**Step 2 — Fetch and format as CSV**
+
+```bash
+curl -s "${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${SUPABASE_USER_ID}&date=gte.${START}&date=lt.${NEXT}&order=date.asc&select=*" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  | jq -r '
+    def acct(c; t):
+      if c == "income_business" then "売上高"
+      elif c == "food" or c == "meal" then (if t == "Income" then "売上高" else "会議費" end)
+      elif c == "travel" then "旅費交通費"
+      elif c == "supplies" then "消耗品費"
+      elif c == "entertainment" then "接待交際費"
+      elif c == "communication" then "通信費"
+      elif c == "rent" then "地代家賃"
+      elif c == "utilities" then "水道光熱費"
+      elif c == "advertising" then "広告宣伝費"
+      elif c == "outsourcing" then "外注工賃"
+      else "(要確認)"
+      end;
+    def taxcode(r; t):
+      if t == "Income" then
+        (if r == "8%" then "課税売上8%" elif r == "10%" then "課税売上10%" else "課税売上" end)
+      else
+        (if r == "8%" then "課税仕入8%(軽減)" elif r == "10%" then "課税仕入10%" else "(要確認)" end)
+      end;
+    ["日付","種別","勘定科目","税区分","金額","通貨","摘要","取引先","決済方法","インボイス番号","filing_status","備考"],
+    (.[] | [
+      (.date // ""),
+      (.type // ""),
+      acct(.category; .type),
+      taxcode(.tax_rate; .type),
+      ((.amount // 0) | tostring),
+      (.currency // "JPY"),
+      (.description_en // .description // ""),
+      (.vendor_en // .vendor // ""),
+      (.payment_method // ""),
+      (.seller_registration // ""),
+      (.filing_status // ""),
+      (.notes // "")
+    ] | @csv)
+  ' > "$EXPORT_FILE"
+```
+
+**Step 3 — Summarize for user**
+
+```bash
+ROW_COUNT=$(tail -n +2 "$EXPORT_FILE" | wc -l | tr -d ' ')
+INCOME=$(tail -n +2 "$EXPORT_FILE" | awk -F',' '$2 == "\"Income\"" {gsub(/"/, "", $5); s+=$5} END {print s+0}')
+EXPENSE=$(tail -n +2 "$EXPORT_FILE" | awk -F',' '$2 == "\"Expense\"" {gsub(/"/, "", $5); s+=$5} END {print s+0}')
+```
+
+Tell the user: month, row count, total income, total expense, net, and the file path on the droplet (`/root/tetsuclaw/groups/telegram_main/user/export_YYYYMM.csv`). Flag any rows with 勘定科目 `(要確認)` — those need category assignment before sending to the 税理士.
+
+**Column definitions (for 税理士 reference):**
+- 日付 — transaction date (YYYY-MM-DD)
+- 種別 — Income / Expense
+- 勘定科目 — account name (mapped from category)
+- 税区分 — consumption tax classification per 消費税法
+- 金額 — amount in stated currency
+- 通貨 — currency code (JPY, USD, etc.)
+- 摘要 — description in English
+- 取引先 — vendor name
+- 決済方法 — payment method
+- インボイス番号 — T-number (適格請求書発行事業者登録番号), if present
+- filing_status — Pending / Filed / Reviewed
+- 備考 — notes
+
+**Uncategorized rows:** If any rows have `(要確認)` in 勘定科目, list them by description and ask the user to confirm category before sending to the 税理士.
+
 ## App: Japan Money Tracker
 The companion app for financial tracking, backed by Supabase.
 
