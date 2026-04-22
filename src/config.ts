@@ -15,6 +15,9 @@ const envConfig = readEnvFile([
   'STRIPE_EXPORT_GROUP',
   'TELEGRAM_BOT_POOL',
   'TZ',
+  'GDRIVE_KEY_PATH',
+  'GDRIVE_UPLOAD_FOLDER_ID',
+  'GDRIVE_PROXY_PORT',
 ]);
 
 export const ASSISTANT_NAME =
@@ -113,6 +116,18 @@ export const STRIPE_WEBHOOK_PORT = parseInt(
 // Which group folder receives the transactions.json mirror file. Defaults to main.
 export const STRIPE_EXPORT_GROUP =
   process.env.STRIPE_EXPORT_GROUP || envConfig.STRIPE_EXPORT_GROUP || 'main';
+
+// Google Drive proxy — opt-in. Server only starts if GDRIVE_KEY_PATH is set.
+export const GDRIVE_KEY_PATH =
+  process.env.GDRIVE_KEY_PATH || envConfig.GDRIVE_KEY_PATH || '';
+export const GDRIVE_UPLOAD_FOLDER_ID =
+  process.env.GDRIVE_UPLOAD_FOLDER_ID ||
+  envConfig.GDRIVE_UPLOAD_FOLDER_ID ||
+  '';
+export const GDRIVE_PROXY_PORT = parseInt(
+  process.env.GDRIVE_PROXY_PORT || envConfig.GDRIVE_PROXY_PORT || '3102',
+  10,
+);
 
 export const TELEGRAM_BOT_POOL = (
   process.env.TELEGRAM_BOT_POOL ||

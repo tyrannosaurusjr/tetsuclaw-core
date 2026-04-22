@@ -92,8 +92,22 @@ async function upsertToSupabase(tx: StripeTransaction): Promise<void> {
 // Everything else (USD, EUR, GBP, …) uses the smallest unit (cents) and must
 // be divided by 100 to get the major unit.
 const ZERO_DECIMAL_CURRENCIES = new Set([
-  'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW',
-  'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+  'BIF',
+  'CLP',
+  'DJF',
+  'GNF',
+  'JPY',
+  'KMF',
+  'KRW',
+  'MGA',
+  'PYG',
+  'RWF',
+  'UGX',
+  'VND',
+  'VUV',
+  'XAF',
+  'XOF',
+  'XPF',
 ]);
 
 function toMajorUnit(amount: number, currency: string): number {

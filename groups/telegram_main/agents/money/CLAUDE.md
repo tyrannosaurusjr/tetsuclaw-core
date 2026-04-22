@@ -117,7 +117,21 @@ curl -s "${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${SUPABASE_USER_ID}&dat
   ' > "$EXPORT_FILE"
 ```
 
-**Step 3 — Summarize for user**
+**Step 3 — Upload to Google Drive and get a shareable link**
+
+The Node.js host runs a Drive upload proxy on `host.docker.internal:3102`. Send it the **host path** (translate `/workspace/group/...` → `/root/tetsuclaw/groups/telegram_main/...`). It returns a `webViewLink` that anyone with the link can open.
+
+```bash
+HOST_EXPORT_PATH="/root/tetsuclaw/groups/telegram_main/user/export_${YEAR_MONTH//-/}.csv"
+DRIVE_RESPONSE=$(curl -s -X POST http://host.docker.internal:3102/gdrive/upload \
+  -H "Content-Type: application/json" \
+  -d "{\"hostPath\":\"${HOST_EXPORT_PATH}\",\"name\":\"Tetsuclaw Export ${YEAR_MONTH}.csv\"}")
+DRIVE_LINK=$(echo "$DRIVE_RESPONSE" | jq -r '.webViewLink // empty')
+```
+
+If `DRIVE_LINK` is empty, the upload failed — echo `$DRIVE_RESPONSE` so the error surfaces in the session log.
+
+**Step 4 — Summarize for user**
 
 ```bash
 ROW_COUNT=$(tail -n +2 "$EXPORT_FILE" | wc -l | tr -d ' ')
@@ -125,7 +139,7 @@ INCOME=$(tail -n +2 "$EXPORT_FILE" | awk -F',' '$2 == "\"Income\"" {gsub(/"/, ""
 EXPENSE=$(tail -n +2 "$EXPORT_FILE" | awk -F',' '$2 == "\"Expense\"" {gsub(/"/, "", $5); s+=$5} END {print s+0}')
 ```
 
-Tell the user: month, row count, total income, total expense, net, and the file path on the droplet (`/root/tetsuclaw/groups/telegram_main/user/export_YYYYMM.csv`). Flag any rows with 勘定科目 `(要確認)` — those need category assignment before sending to the 税理士.
+Tell the user: month, row count, total income, total expense, net, and the **Drive link** (`$DRIVE_LINK`). Flag any rows with 勘定科目 `(要確認)` — those need category assignment before sending to the 税理士.
 
 **Column definitions (for 税理士 reference):**
 - 日付 — transaction date (YYYY-MM-DD)
