@@ -13,11 +13,16 @@ const envConfig = readEnvFile([
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_WEBHOOK_PORT',
   'STRIPE_EXPORT_GROUP',
+  'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_BOT_POOL',
   'TZ',
   'GDRIVE_KEY_PATH',
   'GDRIVE_UPLOAD_FOLDER_ID',
   'GDRIVE_PROXY_PORT',
+  'BW_CLIENTID',
+  'BW_CLIENTSECRET',
+  'BW_PASSWORD',
+  'BW_PROXY_PORT',
 ]);
 
 export const ASSISTANT_NAME =
@@ -129,6 +134,9 @@ export const GDRIVE_PROXY_PORT = parseInt(
   10,
 );
 
+export const TELEGRAM_BOT_TOKEN =
+  process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
+
 export const TELEGRAM_BOT_POOL = (
   process.env.TELEGRAM_BOT_POOL ||
   envConfig.TELEGRAM_BOT_POOL ||
@@ -137,3 +145,15 @@ export const TELEGRAM_BOT_POOL = (
   .split(',')
   .map((t) => t.trim())
   .filter(Boolean);
+
+// Bitwarden credential proxy — opt-in. Only starts when all three BW_ vars are set.
+export const BW_CLIENTID =
+  process.env.BW_CLIENTID || envConfig.BW_CLIENTID || '';
+export const BW_CLIENTSECRET =
+  process.env.BW_CLIENTSECRET || envConfig.BW_CLIENTSECRET || '';
+export const BW_PASSWORD =
+  process.env.BW_PASSWORD || envConfig.BW_PASSWORD || '';
+export const BW_PROXY_PORT = parseInt(
+  process.env.BW_PROXY_PORT || envConfig.BW_PROXY_PORT || '3103',
+  10,
+);

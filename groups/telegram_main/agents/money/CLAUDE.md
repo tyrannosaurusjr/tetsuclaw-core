@@ -245,6 +245,37 @@ After completing both curls (whether they succeeded or failed), append one line 
 echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"file\":\"$FILENAME\",\"storage_ok\":$STORAGE_OK,\"tx_id\":\"$TX_ID\"}" >> /workspace/group/user/receipt_log.jsonl
 ```
 
+## Vault
+
+Use the Bitwarden proxy to retrieve credentials when the user asks for a login, password, or account details stored in the vault.
+
+**Rules:**
+- NEVER output passwords in chat. Always use `/bw/send-ephemeral` — the proxy sends directly to Telegram and auto-deletes.
+- Use `/bw/get` only when you need the credential internally (e.g., to auto-fill a form) and will not show it to the user.
+- If `$NANOCLAW_CHAT_ID` is not set (warm container), tell the user the vault tool is unavailable and ask them to re-send the request.
+
+**Send credentials to user (ephemeral, auto-deletes in 30s):**
+
+```bash
+RESULT=$(curl -s -X POST http://host.docker.internal:3103/bw/send-ephemeral \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"MUFG Bank\",\"chat_id\":\"$NANOCLAW_CHAT_ID\"${NANOCLAW_THREAD_ID:+,\"thread_id\":$NANOCLAW_THREAD_ID},\"delete_after\":30}")
+# Check response
+echo "$RESULT" | jq -r '.message // .error'
+# Then reply to user: "I've sent your MUFG Bank credentials — they'll self-delete in 30 seconds."
+```
+
+**Retrieve credentials internally (for automation, not shown to user):**
+
+```bash
+CRED=$(curl -s -X POST http://host.docker.internal:3103/bw/get \
+  -H "Content-Type: application/json" \
+  -d '{"name":"MUFG Bank"}')
+USERNAME=$(echo "$CRED" | jq -r '.username')
+```
+
+**Error handling:** Check the HTTP response. If `.error` is present, report it to the user.
+
 ## Tools
 - Images arrive as [Image: attachments/...] — you can see their contents
 - Use `mcp__nanoclaw__send_message` with sender set to `"Money"` for ALL messages

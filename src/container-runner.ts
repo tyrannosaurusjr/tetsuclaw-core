@@ -46,6 +46,7 @@ export interface ContainerInput {
   assistantName?: string;
   imageAttachments?: Array<{ relativePath: string; mediaType: string }>;
   script?: string;
+  messageThreadId?: number;
 }
 
 export interface ContainerOutput {
@@ -306,6 +307,7 @@ export async function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
   agentIdentifier?: string,
+  extraEnv?: Record<string, string>,
 ): Promise<string[]> {
   const args: string[] = ['run', '-i', '--rm', '--name', containerName];
 
@@ -362,6 +364,12 @@ export async function buildContainerArgs(
     }
   }
 
+  if (extraEnv) {
+    for (const [k, v] of Object.entries(extraEnv)) {
+      if (v) args.push('-e', `${k}=${v}`);
+    }
+  }
+
   args.push(CONTAINER_IMAGE);
 
   return args;
@@ -403,10 +411,17 @@ export async function runContainerAgent(
     const agentIdentifier = input.isMain
       ? undefined
       : group.folder.toLowerCase().replace(/_/g, '-');
+    const chatEnv: Record<string, string> = {
+      NANOCLAW_CHAT_ID: input.chatJid.replace(/^tg:/, ''),
+    };
+    if (input.messageThreadId) {
+      chatEnv.NANOCLAW_THREAD_ID = String(input.messageThreadId);
+    }
     containerArgs = await buildContainerArgs(
       mounts,
       containerName,
       agentIdentifier,
+      chatEnv,
     );
 
     logger.debug(

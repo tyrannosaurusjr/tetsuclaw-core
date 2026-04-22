@@ -70,12 +70,13 @@ import {
   isSessionCommandAllowed,
 } from './session-commands.js';
 import { startSessionCleanup } from './session-cleanup.js';
+import { startBWProxy } from './bw-proxy.js';
 import { startGDriveProxy } from './gdrive-proxy.js';
 import { startStripeWebhookServer } from './stripe-webhook.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { parseImageReferences } from './image.js';
-import { initBotPool } from './channels/telegram.js';
+import { getLatestThreadId, initBotPool } from './channels/telegram.js';
 import { StatusTracker } from './status-tracker.js';
 import { logger } from './logger.js';
 import { WarmPool } from './warm-pool.js';
@@ -540,6 +541,7 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        messageThreadId: getLatestThreadId(chatJid),
         ...(imageAttachments.length > 0 && { imageAttachments }),
       },
       (proc, containerName) =>
@@ -950,6 +952,7 @@ async function main(): Promise<void> {
   // Start subsystems (independently of connection handler)
   startStripeWebhookServer();
   startGDriveProxy();
+  startBWProxy();
   startSchedulerLoop({
     registeredGroups: () => registeredGroups,
     getSessions: () => sessions,

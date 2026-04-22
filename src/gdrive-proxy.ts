@@ -82,9 +82,7 @@ function resolveAgentPath(hostPath: string): string {
   return resolved;
 }
 
-export async function uploadToDrive(
-  req: UploadRequest,
-): Promise<UploadResult> {
+export async function uploadToDrive(req: UploadRequest): Promise<UploadResult> {
   if (!req.hostPath) throw new Error('Missing hostPath');
   const absolutePath = resolveAgentPath(req.hostPath);
   const displayName = req.name || path.basename(absolutePath);
@@ -183,10 +181,7 @@ export function startGDriveProxy(): http.Server | null {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
     } catch (err) {
-      logger.warn(
-        { err: String(err) },
-        'Google Drive upload failed',
-      );
+      logger.warn({ err: String(err) }, 'Google Drive upload failed');
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: String(err) }));
     }

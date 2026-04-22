@@ -118,6 +118,14 @@ export function getMainBotApi(): Api | null {
 }
 
 /**
+ * Get the latest known forum thread ID for a chat (for routing ephemeral messages).
+ * Returns undefined if the chat has no active topic context.
+ */
+export function getLatestThreadId(chatJid: string): number | undefined {
+  return chatThreadId.get(chatJid);
+}
+
+/**
  * Initialize send-only Api instances for the bot pool.
  */
 export async function initBotPool(tokens: string[]): Promise<void> {
