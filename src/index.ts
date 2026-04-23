@@ -70,7 +70,11 @@ import {
   isSessionCommandAllowed,
 } from './session-commands.js';
 import { startSessionCleanup } from './session-cleanup.js';
-import { startBWProxy } from './bw-proxy.js';
+import {
+  confirmVaultRequest,
+  hasPendingVaultConfirmation,
+  startBWProxy,
+} from './bw-proxy.js';
 import { startGDriveProxy } from './gdrive-proxy.js';
 import { startStripeWebhookServer } from './stripe-webhook.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -294,6 +298,22 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   );
 
   if (missedMessages.length === 0) return true;
+
+  // --- Vault confirmation interceptor ---
+  // If the user replied "yes" to a pending credential request, resolve it here
+  // before any agent sees the message — injected prompts cannot fake this reply.
+  if (hasPendingVaultConfirmation(chatJid)) {
+    const latest = missedMessages[missedMessages.length - 1];
+    if (latest && /^yes\b/i.test(latest.content.trim())) {
+      const confirmed = confirmVaultRequest(chatJid);
+      if (confirmed) {
+        lastAgentTimestamp[chatJid] = latest.timestamp;
+        saveState();
+        return true;
+      }
+    }
+  }
+  // --- End vault confirmation interceptor ---
 
   // --- Session command interception (before trigger check) ---
   const cmdResult = await handleSessionCommand({

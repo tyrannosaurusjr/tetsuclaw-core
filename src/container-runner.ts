@@ -3,11 +3,13 @@
  * Spawns agent execution in containers and handles IPC
  */
 import { ChildProcess, spawn } from 'child_process';
+import { createHmac } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
 import {
+  BW_PROXY_SECRET,
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
@@ -411,11 +413,23 @@ export async function runContainerAgent(
     const agentIdentifier = input.isMain
       ? undefined
       : group.folder.toLowerCase().replace(/_/g, '-');
+    const numericChatId = input.chatJid.replace(/^tg:/, '');
+    const agentScope = agentIdentifier
+      ? agentIdentifier.split('-').pop() || 'main'
+      : 'main';
     const chatEnv: Record<string, string> = {
-      NANOCLAW_CHAT_ID: input.chatJid.replace(/^tg:/, ''),
+      NANOCLAW_CHAT_ID: numericChatId,
     };
     if (input.messageThreadId) {
       chatEnv.NANOCLAW_THREAD_ID = String(input.messageThreadId);
+    }
+    if (BW_PROXY_SECRET) {
+      const expiry = Date.now() + CONTAINER_TIMEOUT;
+      const payload = `${numericChatId}|${expiry}|${agentScope}`;
+      const hmac = createHmac('sha256', BW_PROXY_SECRET)
+        .update(payload)
+        .digest('hex');
+      chatEnv.NANOCLAW_VAULT_TOKEN = `${payload}|${hmac}`;
     }
     containerArgs = await buildContainerArgs(
       mounts,

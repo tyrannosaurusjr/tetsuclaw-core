@@ -23,6 +23,7 @@ const envConfig = readEnvFile([
   'BW_CLIENTSECRET',
   'BW_PASSWORD',
   'BW_PROXY_PORT',
+  'BW_PROXY_SECRET',
 ]);
 
 export const ASSISTANT_NAME =
@@ -145,6 +146,11 @@ export const TELEGRAM_BOT_POOL = (
   .split(',')
   .map((t) => t.trim())
   .filter(Boolean);
+
+// Shared HMAC secret for signing vault tokens. Generated randomly at first run
+// and stored in .env — never changes, never leaves the host.
+export const BW_PROXY_SECRET =
+  process.env.BW_PROXY_SECRET || envConfig.BW_PROXY_SECRET || '';
 
 // Bitwarden credential proxy — opt-in. Only starts when all three BW_ vars are set.
 export const BW_CLIENTID =
