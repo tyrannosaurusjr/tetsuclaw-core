@@ -119,10 +119,10 @@ curl -s "${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${SUPABASE_USER_ID}&dat
 
 **Step 3 — Upload to Google Drive and get a shareable link**
 
-The Node.js host runs a Drive upload proxy on `host.docker.internal:3102`. Send it the **host path** (translate `/workspace/group/...` → `/root/tetsuclaw-core/groups/telegram_main/...`). It returns a `webViewLink` that anyone with the link can open.
+The Node.js host runs a Drive upload proxy on `host.docker.internal:3102`. Send it the **host path** (translate `/workspace/group/...` → `/root/tetsuclaw/groups/telegram_main/...`). It returns a `webViewLink` that anyone with the link can open.
 
 ```bash
-HOST_EXPORT_PATH="/root/tetsuclaw-core/groups/telegram_main/user/export_${YEAR_MONTH//-/}.csv"
+HOST_EXPORT_PATH="/root/tetsuclaw/groups/telegram_main/user/export_${YEAR_MONTH//-/}.csv"
 DRIVE_RESPONSE=$(curl -s -X POST http://host.docker.internal:3102/gdrive/upload \
   -H "Content-Type: application/json" \
   -d "{\"hostPath\":\"${HOST_EXPORT_PATH}\",\"name\":\"Tetsuclaw Export ${YEAR_MONTH}.csv\"}")
