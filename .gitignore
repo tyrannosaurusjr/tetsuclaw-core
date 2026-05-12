@@ -12,6 +12,8 @@ logs/
 # Groups - track templates only, not per-install data
 groups/*
 !groups/main/
+groups/main/user/*
+!groups/main/user/*.example
 !groups/global/
 !groups/telegram_main/
 groups/telegram_main/*
@@ -30,6 +32,7 @@ groups/telegram_main/user/*
 
 # Secrets
 *.keys.json
+secrets/
 .env
 
 # Temp files
