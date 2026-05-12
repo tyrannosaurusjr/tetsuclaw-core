@@ -29,6 +29,7 @@ groups/telegram_main/user/*
 !groups/telegram_main/user/travel_wallet.json.example
 !groups/review_board/
 !groups/review_board/**
+groups/**/logs/
 
 # Secrets
 *.keys.json
