@@ -435,7 +435,7 @@ NanoClaw uses a hierarchical memory system based on CLAUDE.md files.
 ### How Memory Works
 
 1. **Agent Context Loading**
-   - Agent runs with `cwd` set to `groups/{group-name}/`
+   - Agent runs in a container with `cwd` set to `/workspace/group`, mounted from `groups/{group-name}/`
    - Claude Agent SDK with `settingSources: ['project']` automatically loads:
      - `../CLAUDE.md` (parent directory = global memory)
      - `./CLAUDE.md` (current directory = group memory)

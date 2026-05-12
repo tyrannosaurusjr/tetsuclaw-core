@@ -10,6 +10,7 @@ import os from 'os';
 import path from 'path';
 
 import { logger } from '../src/logger.js';
+import { resolveProjectRoot } from '../src/project-root.js';
 import {
   getPlatform,
   getNodePath,
@@ -21,7 +22,7 @@ import {
 import { emitStatus } from './status.js';
 
 export async function run(_args: string[]): Promise<void> {
-  const projectRoot = process.cwd();
+  const projectRoot = resolveProjectRoot();
   const platform = getPlatform();
   const nodePath = getNodePath();
   const homeDir = os.homedir();
@@ -104,6 +105,8 @@ function setupLaunchd(
         <string>/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin</string>
         <key>HOME</key>
         <string>${homeDir}</string>
+        <key>NANOCLAW_ROOT</key>
+        <string>${projectRoot}</string>
     </dict>
     <key>StandardOutPath</key>
     <string>${projectRoot}/logs/nanoclaw.log</string>
@@ -245,6 +248,7 @@ Restart=always
 RestartSec=5
 KillMode=process
 Environment=HOME=${homeDir}
+Environment=NANOCLAW_ROOT=${projectRoot}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin
 StandardOutput=append:${projectRoot}/logs/nanoclaw.log
 StandardError=append:${projectRoot}/logs/nanoclaw.error.log
@@ -338,6 +342,7 @@ function setupNohupFallback(
     '',
     'set -euo pipefail',
     '',
+    `export NANOCLAW_ROOT=${JSON.stringify(projectRoot)}`,
     `cd ${JSON.stringify(projectRoot)}`,
     '',
     '# Stop existing instance if running',

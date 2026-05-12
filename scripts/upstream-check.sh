@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-REPO_DIR="$HOME/tetsuclaw"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="${REPO_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 TELEGRAM_TOKEN=$(grep TELEGRAM_BOT_TOKEN "$REPO_DIR/.env" | cut -d= -f2)
 CHAT_ID="tg:-5094076457"
 # Extract numeric chat ID for Telegram API

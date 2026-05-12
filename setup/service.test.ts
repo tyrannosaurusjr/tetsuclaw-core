@@ -37,6 +37,8 @@ function generatePlist(
         <string>/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin</string>
         <key>HOME</key>
         <string>${homeDir}</string>
+        <key>NANOCLAW_ROOT</key>
+        <string>${projectRoot}</string>
     </dict>
     <key>StandardOutPath</key>
     <string>${projectRoot}/logs/nanoclaw.log</string>
@@ -64,6 +66,7 @@ Restart=always
 RestartSec=5
 KillMode=process
 Environment=HOME=${homeDir}
+Environment=NANOCLAW_ROOT=${projectRoot}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin
 StandardOutput=append:${projectRoot}/logs/nanoclaw.log
 StandardError=append:${projectRoot}/logs/nanoclaw.error.log
@@ -175,6 +178,7 @@ describe('WSL nohup fallback', () => {
     // Simulate what service.ts generates
     const wrapper = `#!/bin/bash
 set -euo pipefail
+export NANOCLAW_ROOT=${JSON.stringify(projectRoot)}
 cd ${JSON.stringify(projectRoot)}
 nohup ${JSON.stringify(nodePath)} ${JSON.stringify(projectRoot)}/dist/index.js >> ${JSON.stringify(projectRoot)}/logs/nanoclaw.log 2>> ${JSON.stringify(projectRoot)}/logs/nanoclaw.error.log &
 echo $! > ${JSON.stringify(pidFile)}`;

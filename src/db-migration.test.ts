@@ -7,10 +7,12 @@ import { describe, expect, it, vi } from 'vitest';
 describe('database migrations', () => {
   it('defaults Telegram backfill chats to direct messages', async () => {
     const repoRoot = process.cwd();
+    const originalRoot = process.env.NANOCLAW_ROOT;
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nanoclaw-db-test-'));
 
     try {
       process.chdir(tempDir);
+      process.env.NANOCLAW_ROOT = tempDir;
       fs.mkdirSync(path.join(tempDir, 'store'), { recursive: true });
 
       const dbPath = path.join(tempDir, 'store', 'messages.db');
@@ -61,6 +63,11 @@ describe('database migrations', () => {
 
       _closeDatabase();
     } finally {
+      if (originalRoot === undefined) {
+        delete process.env.NANOCLAW_ROOT;
+      } else {
+        process.env.NANOCLAW_ROOT = originalRoot;
+      }
       process.chdir(repoRoot);
     }
   });

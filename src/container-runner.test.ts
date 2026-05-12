@@ -17,6 +17,7 @@ vi.mock('./config.js', () => ({
   IDLE_TIMEOUT: 1800000, // 30min
   OLLAMA_ADMIN_TOOLS: false,
   ONECLI_URL: 'http://localhost:10254',
+  PROJECT_ROOT: process.cwd(),
   TIMEZONE: 'America/Los_Angeles',
 }));
 

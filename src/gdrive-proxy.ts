@@ -28,10 +28,12 @@ import {
   GDRIVE_UPLOAD_FOLDER_ID,
   GROUPS_DIR,
 } from './config.js';
+import { assertValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 
 type UploadRequest = {
   hostPath?: string;
+  groupFolder?: string;
   name?: string;
   mimeType?: string;
 };
@@ -59,32 +61,60 @@ function readRawBody(req: http.IncomingMessage): Promise<string> {
  * host is GROUPS_DIR/{groupName}. They can pass either form; we normalize
  * both to the host path and verify the result stays inside GROUPS_DIR.
  */
-function resolveAgentPath(hostPath: string): string {
-  // Translate container path to host path if needed.
-  // "/workspace/group/user/export_202604.csv" → nothing — the agent
-  // doesn't know its own group name, so it must either send a host path
-  // or a /workspace/group/... path WITH the group name explicit. We
-  // require the caller to convert — safer than guessing.
-  const resolved = path.resolve(hostPath);
-  const groupsRoot = path.resolve(GROUPS_DIR);
-  if (!resolved.startsWith(groupsRoot + path.sep)) {
-    throw new Error(
-      `Path ${resolved} is outside GROUPS_DIR — rejected for security`,
-    );
-  }
+export function resolveAgentPath(
+  hostPath: string,
+  groupFolder?: string,
+): string {
+  const resolved = resolveRequestedPath(hostPath, groupFolder);
+  const groupsRoot = fs.realpathSync(GROUPS_DIR);
   if (!fs.existsSync(resolved)) {
     throw new Error(`File not found: ${resolved}`);
   }
-  const stat = fs.statSync(resolved);
-  if (!stat.isFile()) {
-    throw new Error(`Not a regular file: ${resolved}`);
+  const realResolved = fs.realpathSync(resolved);
+  const relativeToGroups = path.relative(groupsRoot, realResolved);
+  if (relativeToGroups.startsWith('..') || path.isAbsolute(relativeToGroups)) {
+    throw new Error(
+      `Path ${realResolved} is outside GROUPS_DIR — rejected for security`,
+    );
   }
-  return resolved;
+  const stat = fs.statSync(realResolved);
+  if (!stat.isFile()) {
+    throw new Error(`Not a regular file: ${realResolved}`);
+  }
+  return realResolved;
+}
+
+function resolveRequestedPath(hostPath: string, groupFolder?: string): string {
+  const containerGroupRoot = '/workspace/group';
+  const normalized = path.posix.normalize(hostPath);
+  const isContainerPath =
+    normalized === containerGroupRoot ||
+    normalized.startsWith(`${containerGroupRoot}/`);
+
+  if (!isContainerPath) return path.resolve(hostPath);
+
+  if (!groupFolder) {
+    throw new Error(
+      'groupFolder is required when hostPath starts with /workspace/group',
+    );
+  }
+  assertValidGroupFolder(groupFolder);
+
+  const relativePath = path.posix.relative(containerGroupRoot, normalized);
+  if (
+    !relativePath ||
+    relativePath.startsWith('..') ||
+    path.posix.isAbsolute(relativePath)
+  ) {
+    throw new Error(`Invalid container path: ${hostPath}`);
+  }
+
+  return path.resolve(GROUPS_DIR, groupFolder, ...relativePath.split('/'));
 }
 
 export async function uploadToDrive(req: UploadRequest): Promise<UploadResult> {
   if (!req.hostPath) throw new Error('Missing hostPath');
-  const absolutePath = resolveAgentPath(req.hostPath);
+  const absolutePath = resolveAgentPath(req.hostPath, req.groupFolder);
   const displayName = req.name || path.basename(absolutePath);
   const mimeType = req.mimeType || guessMimeType(absolutePath);
 

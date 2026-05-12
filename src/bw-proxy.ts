@@ -202,7 +202,7 @@ async function unlockVault(): Promise<void> {
       !msg.includes('already logged in') &&
       !msg.includes('You are already logged in')
     ) {
-      throw new Error(`bw login failed: ${msg}`);
+      throw new Error(`bw login failed: ${msg}`, { cause: err });
     }
   }
 

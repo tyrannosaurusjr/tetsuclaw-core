@@ -138,6 +138,8 @@ cd tetsuclaw-core
 npm install
 ```
 
+This guide assumes the app directory is `/root/tetsuclaw-core`. If you keep a legacy `/root/tetsuclaw` path, make it a symlink to `/root/tetsuclaw-core` rather than running two separate checkouts.
+
 This takes a few minutes. If `npm install` fails with an out-of-memory error, add swap:
 
 ```bash
@@ -255,8 +257,9 @@ Common causes:
 The session database got out of sync. Fix it:
 
 ```bash
+APP_DIR=/root/tetsuclaw-core
 systemctl stop nanoclaw
-sqlite3 /root/tetsuclaw-core/store/messages.db "DELETE FROM sessions"
+sqlite3 "$APP_DIR/store/messages.db" "DELETE FROM sessions"
 systemctl start nanoclaw
 ```
 
@@ -265,7 +268,8 @@ systemctl start nanoclaw
 When there's a new version of Tetsuclaw:
 
 ```bash
-cd /root/tetsuclaw-core
+APP_DIR=/root/tetsuclaw-core
+cd "$APP_DIR"
 git pull
 npm install
 npm run build

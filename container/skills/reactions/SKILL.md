@@ -29,7 +29,7 @@ Omitting `message_id` reacts to the most recent message in the chat.
 mcp__nanoclaw__react_to_message(emoji: "❤️", message_id: "3EB0F4C9E7...")
 ```
 
-Pass a `message_id` to react to a specific message. You can find message IDs by querying the messages database:
+Pass a `message_id` to react to a specific message. In the main group, you can find message IDs by querying the messages database:
 
 ```bash
 sqlite3 /workspace/project/store/messages.db "

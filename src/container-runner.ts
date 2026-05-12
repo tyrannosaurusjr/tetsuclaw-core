@@ -18,6 +18,7 @@ import {
   IDLE_TIMEOUT,
   OLLAMA_ADMIN_TOOLS,
   ONECLI_URL,
+  PROJECT_ROOT,
   TIMEZONE,
 } from './config.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -107,7 +108,7 @@ export function buildVolumeMounts(
   isMain: boolean,
 ): VolumeMount[] {
   const mounts: VolumeMount[] = [];
-  const projectRoot = process.cwd();
+  const projectRoot = PROJECT_ROOT;
   const groupDir = resolveGroupFolderPath(group.folder);
 
   if (isMain) {
@@ -208,7 +209,7 @@ export function buildVolumeMounts(
   }
 
   // Sync skills from container/skills/ into each group's .claude/skills/
-  const skillsSrc = path.join(process.cwd(), 'container', 'skills');
+  const skillsSrc = path.join(projectRoot, 'container', 'skills');
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {

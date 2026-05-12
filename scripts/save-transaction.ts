@@ -6,7 +6,7 @@
  * table so it appears in the Japan Money Tracker web app.
  *
  * Usage (from inside an agent container):
- *   echo '<JSON>' | npx tsx /app/scripts/save-transaction.ts
+ *   echo '<JSON>' | npx tsx /workspace/project/scripts/save-transaction.ts
  *
  * Input (stdin): a single JSON object with transaction fields in camelCase.
  * Required fields: date, amount (number in smallest unit — ¥ not subdivided)
@@ -47,7 +47,9 @@ try {
 }
 
 if (!tx.date || tx.amount === undefined) {
-  console.error('ERROR: Transaction must have at least "date" and "amount" fields.');
+  console.error(
+    'ERROR: Transaction must have at least "date" and "amount" fields.',
+  );
   process.exit(1);
 }
 
