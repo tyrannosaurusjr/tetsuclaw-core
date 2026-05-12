@@ -247,6 +247,7 @@ WorkingDirectory=${projectRoot}
 Restart=always
 RestartSec=5
 KillMode=process
+EnvironmentFile=-${projectRoot}/.env
 Environment=HOME=${homeDir}
 Environment=NANOCLAW_ROOT=${projectRoot}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:${homeDir}/.local/bin
