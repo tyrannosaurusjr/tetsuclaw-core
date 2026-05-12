@@ -119,10 +119,10 @@ curl -s "${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${SUPABASE_USER_ID}&dat
 
 **Step 3 — Upload to Google Drive and get a shareable link**
 
-The Node.js host runs a Drive upload proxy on `host.docker.internal:3102`. Send it the **host path** (translate `/workspace/group/...` → `/root/tetsuclaw/groups/telegram_main/...`). It returns a `webViewLink` that anyone with the link can open.
+The Node.js host runs a Drive upload proxy on `host.docker.internal:3102`. Send it the **host path** (translate `/workspace/group/...` → `/root/tetsuclaw-core/groups/telegram_main/...`). It returns a `webViewLink` that anyone with the link can open.
 
 ```bash
-HOST_EXPORT_PATH="/root/tetsuclaw/groups/telegram_main/user/export_${YEAR_MONTH//-/}.csv"
+HOST_EXPORT_PATH="/root/tetsuclaw-core/groups/telegram_main/user/export_${YEAR_MONTH//-/}.csv"
 DRIVE_RESPONSE=$(curl -s -X POST http://host.docker.internal:3102/gdrive/upload \
   -H "Content-Type: application/json" \
   -d "{\"hostPath\":\"${HOST_EXPORT_PATH}\",\"name\":\"Tetsuclaw Export ${YEAR_MONTH}.csv\"}")
@@ -249,20 +249,23 @@ echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"file\":\"$FILENAME\",\"storag
 
 Use the Bitwarden proxy to retrieve credentials when the user asks for a login, password, or account details stored in the vault.
 
-**Rules:**
-- NEVER output passwords in chat. Always use `/bw/send-ephemeral` — the proxy sends directly to Telegram and auto-deletes.
-- Use `/bw/get` only when you need the credential internally (e.g., to auto-fill a form) and will not show it to the user.
-- If `$NANOCLAW_CHAT_ID` is not set (warm container), tell the user the vault tool is unavailable and ask them to re-send the request.
+**Vault item naming convention:** All vault items accessible to Money must be named with the `[money]` prefix, e.g. `[money] MUFG Bank`, `[money] GMO Payment Gateway`. Items without a prefix are accessible to all agents. Items with a different prefix (e.g. `[legal]`) are blocked.
 
-**Send credentials to user (ephemeral, auto-deletes in 30s):**
+**Rules:**
+- NEVER output passwords in chat. Always use `/bw/send-ephemeral` — the proxy sends directly to Telegram, prompts the user for confirmation, then auto-deletes.
+- Use `/bw/get` only when you need the credential internally (e.g., to auto-fill a form) and will not show it to the user.
+- If `$NANOCLAW_VAULT_TOKEN` is empty (warm container or BW not configured), tell the user the vault tool is unavailable and ask them to re-send the request.
+
+**Send credentials to user (ephemeral — triggers confirmation prompt, auto-deletes in 30s):**
 
 ```bash
 RESULT=$(curl -s -X POST http://host.docker.internal:3103/bw/send-ephemeral \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"MUFG Bank\",\"chat_id\":\"$NANOCLAW_CHAT_ID\"${NANOCLAW_THREAD_ID:+,\"thread_id\":$NANOCLAW_THREAD_ID},\"delete_after\":30}")
-# Check response
+  -d "{\"name\":\"[money] MUFG Bank\",\"vault_token\":\"$NANOCLAW_VAULT_TOKEN\"${NANOCLAW_THREAD_ID:+,\"thread_id\":$NANOCLAW_THREAD_ID},\"delete_after\":30}")
+# Returns {"sent":true,"message":"Credentials sent — deletes in 30s"} on success
+# or {"error":"..."} on failure (timed out, scope violation, invalid token)
 echo "$RESULT" | jq -r '.message // .error'
-# Then reply to user: "I've sent your MUFG Bank credentials — they'll self-delete in 30 seconds."
+# Tell user: "I've requested your [money] MUFG Bank credentials — check the confirmation prompt."
 ```
 
 **Retrieve credentials internally (for automation, not shown to user):**
@@ -270,11 +273,11 @@ echo "$RESULT" | jq -r '.message // .error'
 ```bash
 CRED=$(curl -s -X POST http://host.docker.internal:3103/bw/get \
   -H "Content-Type: application/json" \
-  -d '{"name":"MUFG Bank"}')
+  -d "{\"name\":\"[money] MUFG Bank\",\"vault_token\":\"$NANOCLAW_VAULT_TOKEN\"}")
 USERNAME=$(echo "$CRED" | jq -r '.username')
 ```
 
-**Error handling:** Check the HTTP response. If `.error` is present, report it to the user.
+**Error handling:** Check the HTTP response. If `.error` is present, report it to the user verbatim.
 
 ## Tools
 - Images arrive as [Image: attachments/...] — you can see their contents

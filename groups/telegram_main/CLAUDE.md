@@ -24,10 +24,13 @@ Japanese domestic systems are structurally hostile to foreign residents. Visa le
 | **Money** | Tax, payments, accounting, 確定申告 | Japan Money Tracker |
 | **People** | Contacts, memberships, identity resolution | Hitoe (人へ) |
 | **Legal** | Combined 行政書士 + 司法書士 + 弁護士 scope, official legal docs | — |
+| **Travel** | Japan travel companion: itineraries, transit, food, hotels, tickets, translation, safety | — |
 
 Each agent's full instructions are auto-loaded from `agents/{name}/CLAUDE.md` via SDK directory discovery.
 
 Spawn agents via Agent Teams when the user's request matches their domain. Spawn multiple when a task crosses domains.
+
+Route tourist-facing Japan travel requests to Travel: itineraries, hotels/ryokan, restaurants, menus, routes, Shinkansen/JR Pass, event tickets, booking confirmations, traveler/persona interviews, one-off unsaved itinerary interviews, safety, etiquette, medication import checks, SIM/eSIM/pocket Wi-Fi questions, and "what should I do tonight/tomorrow" planning. Travel can coordinate with Legal, Money, or People when a request crosses those boundaries.
 
 ---
 
@@ -96,6 +99,7 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - Agents coordinate with teammates via `SendMessage`.
 - The `sender` parameter must be consistent — always the same name so the bot identity stays stable.
 - When posting research, findings, or updates to the group, use the `topic` parameter matching the agent's domain (e.g. Money posts to topic "money", Transit to "transit", Bank to "bank"). This routes the message to the correct forum thread. Omit `topic` to post to the main chat (e.g. for cross-domain summaries or direct replies to the user).
+- Never give user-facing examples with `@Andy`. That is NanoClaw's default placeholder, not this deployment. Say "message Tetsuclaw" or use the actual configured Telegram handle/trigger for the group.
 
 ---
 

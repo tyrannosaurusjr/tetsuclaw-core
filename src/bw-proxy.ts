@@ -345,7 +345,8 @@ export function startBWProxy(): http.Server | null {
       if (req.url === '/bw/get') {
         const { name, vault_token } = parsed as GetRequest;
         if (!name) return sendJson(400, { error: 'Missing name' });
-        if (!vault_token) return sendJson(401, { error: 'Missing vault_token' });
+        if (!vault_token)
+          return sendJson(401, { error: 'Missing vault_token' });
 
         const claims = verifyVaultToken(vault_token);
         assertScopeAllowed(name, claims.scope);
@@ -369,7 +370,8 @@ export function startBWProxy(): http.Server | null {
         } = parsed as SendEphemeralRequest;
 
         if (!name) return sendJson(400, { error: 'Missing name' });
-        if (!vault_token) return sendJson(401, { error: 'Missing vault_token' });
+        if (!vault_token)
+          return sendJson(401, { error: 'Missing vault_token' });
         if (!botToken)
           return sendJson(500, { error: 'TELEGRAM_BOT_TOKEN not configured' });
 
@@ -416,7 +418,10 @@ export function startBWProxy(): http.Server | null {
         const messageId = result?.message_id as number | undefined;
 
         if (!messageId) {
-          logger.warn({ sendResp }, 'Telegram sendMessage returned no message_id');
+          logger.warn(
+            { sendResp },
+            'Telegram sendMessage returned no message_id',
+          );
           return sendJson(500, {
             error: 'Telegram delivery failed',
             detail: sendResp,
@@ -424,7 +429,12 @@ export function startBWProxy(): http.Server | null {
         }
 
         logger.info(
-          { name: cred.name, chatId: claims.chatId, messageId, deleteAfter: delete_after },
+          {
+            name: cred.name,
+            chatId: claims.chatId,
+            messageId,
+            deleteAfter: delete_after,
+          },
           'Ephemeral credential sent to Telegram',
         );
 
@@ -439,7 +449,10 @@ export function startBWProxy(): http.Server | null {
               'Ephemeral credential deleted',
             );
           } catch (err) {
-            logger.warn({ err }, 'Failed to delete ephemeral credential message');
+            logger.warn(
+              { err },
+              'Failed to delete ephemeral credential message',
+            );
           }
         }, delete_after * 1000);
 
@@ -463,7 +476,10 @@ export function startBWProxy(): http.Server | null {
   });
 
   unlockVault().catch((err) => {
-    logger.warn({ err: String(err) }, 'Bitwarden vault unlock failed at startup');
+    logger.warn(
+      { err: String(err) },
+      'Bitwarden vault unlock failed at startup',
+    );
   });
 
   return server;

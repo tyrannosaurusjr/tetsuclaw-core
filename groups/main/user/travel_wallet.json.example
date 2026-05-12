@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "updated_at": "",
+  "bookings": [
+    {
+      "id": "example-001",
+      "category": "shinkansen",
+      "name_en": "Tokaido Shinkansen",
+      "name_ja": "東海道新幹線",
+      "date": "2026-05-13",
+      "time": "18:03",
+      "end_date": "",
+      "venue_address": "",
+      "seat_info": "Car 7 Seat 12A",
+      "quantity": 1,
+      "confirmation_number": "",
+      "ticket_format": "qr",
+      "price": "",
+      "currency": "JPY",
+      "source_file": "",
+      "notes": "Example only. Real entries should be confirmed with the user before saving.",
+      "user_confirmed": false
+    }
+  ]
+}

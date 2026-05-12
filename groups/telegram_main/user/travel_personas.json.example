@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "updated_at": "",
+  "personas": [
+    {
+      "id": "example-parents",
+      "display_name": "Parents",
+      "relationship": "family",
+      "default_origin": "",
+      "japan_experience": "first-time visitors",
+      "language_comfort": "English only",
+      "pace": "moderate, with real breaks",
+      "food": {
+        "favorites": [],
+        "avoid": [],
+        "dietary": "",
+        "allergies": "",
+        "adventurousness": "moderate"
+      },
+      "accommodation": {
+        "preferred_types": ["hotel", "ryokan"],
+        "must_haves": ["comfortable room", "easy transit access"],
+        "deal_breakers": [],
+        "budget_yen_per_night": { "min": 0, "max": 0 }
+      },
+      "transit": {
+        "comfort": "minimize stressful transfers",
+        "walking_limit_minutes": 15,
+        "luggage_style": "avoid carrying luggage across stations",
+        "seat_preference": ""
+      },
+      "interests": [],
+      "nightlife": "low",
+      "accessibility": "",
+      "medical_connectivity": "",
+      "hard_nos": [],
+      "notes": "Example only. Real entries should be built through the Telegram interview and confirmed before saving.",
+      "last_confirmed_at": ""
+    }
+  ]
+}

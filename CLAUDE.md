@@ -124,6 +124,20 @@ Getting around Japan.
 - Airport transfer logistics
 - Referral to travel concierge and Japan Rail Pass vendors (revenue share)
 
+### Travel
+Tourist-facing Japan travel companion.
+- Itinerary planning across cities, neighborhoods, restaurants, accommodations, tickets, weather, and transit
+- Restaurant discovery with dietary/allergy handling, menu/photo translation, seating/smoking/reservation guidance
+- Hotel/ryokan guidance — per-person pricing, check-in rules, room quality, onsen/tattoo considerations, neighborhood fit
+- Ticket and booking wallet for Shinkansen, hotels, museums, restaurants, ferries, shows, QR codes, screenshots, and confirmations
+- Reusable traveler personas for family, clients, friends, and archetypes, built through Telegram interviews
+- One-off unsaved itinerary interviews for trips that should not become durable preferences
+- JR Pass and pass-vs-ticket reasoning
+- Cultural and safety alerts — otoshi, tipping, onsen, Kabukicho/Roppongi scams, emergency numbers, disaster Wi-Fi
+- Medication import checks and time-zone medication planning with medical-advice boundaries
+- Connected medical device warnings for SIM/eSIM/pocket Wi-Fi changes
+- Referral to travel concierge, hotels/ryokan, eSIM providers, reservation platforms, and Japan Rail Pass vendors (affiliate/commission)
+
 ### Health
 Medical access and navigation.
 - English-speaking clinic and doctor directory
@@ -170,6 +184,7 @@ Each agent routes to vetted human professionals:
 | Events | Ticket platforms, event organizers, venue partners | Affiliate/commission |
 | Home | Foreigner-friendly real estate agents, relocation services | Per transaction |
 | Transit | Japan Rail Pass vendors, travel concierge, airport transfers | Affiliate/commission |
+| Travel | Travel concierge, hotels/ryokan, eSIM providers, reservation platforms, JR Pass vendors | Affiliate/commission |
 | Health | English-speaking clinics, international health insurance | Per referral |
 | Legal | English-speaking 行政書士 and lawyers | Per retained client |
 | Docs | Cloud storage partners, bilingual document services | Per referral |
@@ -271,6 +286,7 @@ Tetsuclaw's security model is inherited from NanoClaw's container isolation arch
 | Words | 🟢 Standard | Content generation, no PII |
 | Events | 🟢 Standard | Public event data |
 | Transit | 🟢 Standard | Route data, no PII |
+| Travel | 🟡 High | Travel bookings, locations, medical travel safety context |
 
 **⚠️ Beta disclosure:** Tetsuclaw is a personal fork under active development and has not been independently security audited. Do not input sensitive financial, legal, or medical data until a stable, audited release is available. Use at your own risk.
 

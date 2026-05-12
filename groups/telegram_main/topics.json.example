@@ -97,6 +97,14 @@
       "created_at": "",
       "source": "manual"
     },
+    "travel": {
+      "thread_id": null,
+      "subjects": ["itinerary", "Japan travel", "traveler personas", "one-off trips", "hotels", "ryokan", "restaurants", "menus", "tickets", "JR Pass", "SIM", "eSIM", "pocket Wi-Fi"],
+      "agents": ["travel"],
+      "description": "Japan travel chatbot demo: itinerary planning, food, lodging, booking wallet, translation, transit, and safety",
+      "created_at": "",
+      "source": "manual"
+    },
     "words": {
       "thread_id": null,
       "subjects": ["writing", "translation", "copywriting", "blog", "SEO", "drafts"],
