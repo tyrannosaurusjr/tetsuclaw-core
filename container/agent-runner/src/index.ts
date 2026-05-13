@@ -23,6 +23,7 @@ import {
   PreCompactHookInput,
 } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
+import { resolveClaudeCodeExecutable } from './claude-executable.js';
 
 interface ContainerInput {
   prompt: string;
@@ -506,10 +507,18 @@ async function runQuery(
     log(`Additional directories: ${extraDirs.join(', ')}`);
   }
 
+  const claudeCodeExecutable = resolveClaudeCodeExecutable();
+  if (claudeCodeExecutable) {
+    log(`Using Claude Code executable: ${claudeCodeExecutable}`);
+  } else {
+    log('Claude Code executable resolver found no candidate; using SDK default');
+  }
+
   for await (const message of query({
     prompt: stream,
     options: {
       cwd: '/workspace/group',
+      pathToClaudeCodeExecutable: claudeCodeExecutable,
       additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
       resume: sessionId,
       resumeSessionAt: resumeAt,
