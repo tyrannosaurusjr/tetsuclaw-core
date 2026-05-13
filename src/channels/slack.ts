@@ -2,7 +2,7 @@ import { App, LogLevel } from '@slack/bolt';
 import type { GenericMessageEvent, BotMessageEvent } from '@slack/types';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
-import { updateChatName } from '../db.js';
+import { markChannelGroupsClosed, updateChatName } from '../db.js';
 import { readEnvFile } from '../env.js';
 import { logger } from '../logger.js';
 import { registerChannel, ChannelOpts } from './registry.js';
@@ -219,6 +219,7 @@ export class SlackChannel implements Channel {
       logger.info('Syncing channel metadata from Slack...');
       let cursor: string | undefined;
       let count = 0;
+      const activeJids: string[] = [];
 
       do {
         const result = await this.app.client.conversations.list({
@@ -230,7 +231,9 @@ export class SlackChannel implements Channel {
 
         for (const ch of result.channels || []) {
           if (ch.id && ch.name && ch.is_member) {
-            updateChatName(`slack:${ch.id}`, ch.name);
+            const jid = `slack:${ch.id}`;
+            updateChatName(jid, ch.name);
+            activeJids.push(jid);
             count++;
           }
         }
@@ -238,7 +241,8 @@ export class SlackChannel implements Channel {
         cursor = result.response_metadata?.next_cursor || undefined;
       } while (cursor);
 
-      logger.info({ count }, 'Slack channel metadata synced');
+      const closed = markChannelGroupsClosed('slack', activeJids);
+      logger.info({ count, closed }, 'Slack channel metadata synced');
     } catch (err) {
       logger.error({ err }, 'Failed to sync Slack channel metadata');
     }

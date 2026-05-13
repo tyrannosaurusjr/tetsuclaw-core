@@ -15,6 +15,7 @@ import {
   getReactionsByUser,
   getReactionStats,
   getTaskById,
+  markChannelGroupsClosed,
   storeChatMetadata,
   storeMessage,
   storeReaction,
@@ -480,6 +481,9 @@ describe('storeChatMetadata', () => {
     expect(chats).toHaveLength(1);
     expect(chats[0].jid).toBe('group@g.us');
     expect(chats[0].name).toBe('group@g.us');
+    expect(chats[0].channel).toBe('whatsapp');
+    expect(chats[0].is_group).toBe(1);
+    expect(chats[0].status).toBe('active');
   });
 
   it('stores chat with explicit name', () => {
@@ -501,6 +505,55 @@ describe('storeChatMetadata', () => {
     storeChatMetadata('group@g.us', '2024-01-01T00:00:01.000Z');
     const chats = getAllChats();
     expect(chats[0].last_message_time).toBe('2024-01-01T00:00:05.000Z');
+  });
+
+  it('marks missing channel groups closed without deleting history', () => {
+    storeChatMetadata(
+      'active@g.us',
+      '2024-01-01T00:00:02.000Z',
+      'Active',
+      'whatsapp',
+      true,
+    );
+    storeChatMetadata(
+      'stale@g.us',
+      '2024-01-01T00:00:01.000Z',
+      'Stale',
+      'whatsapp',
+      true,
+    );
+
+    const changes = markChannelGroupsClosed('whatsapp', ['active@g.us']);
+    const chats = getAllChats();
+
+    expect(changes).toBe(1);
+    expect(chats.find((c) => c.jid === 'active@g.us')?.status).toBe('active');
+    const stale = chats.find((c) => c.jid === 'stale@g.us');
+    expect(stale?.status).toBe('closed');
+    expect(stale?.closed_at).toBeTruthy();
+  });
+
+  it('reopens a closed chat when metadata is seen again', () => {
+    storeChatMetadata(
+      'revived@g.us',
+      '2024-01-01T00:00:00.000Z',
+      'Revived',
+      'whatsapp',
+      true,
+    );
+    markChannelGroupsClosed('whatsapp', []);
+
+    storeChatMetadata(
+      'revived@g.us',
+      '2024-01-01T00:00:01.000Z',
+      'Revived',
+      'whatsapp',
+      true,
+    );
+
+    const chat = getAllChats().find((c) => c.jid === 'revived@g.us');
+    expect(chat?.status).toBe('active');
+    expect(chat?.closed_at).toBeNull();
   });
 });
 

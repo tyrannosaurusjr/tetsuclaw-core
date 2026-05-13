@@ -3,6 +3,7 @@ import path from 'path';
 
 import { CronExpressionParser } from 'cron-parser';
 
+import { handleGithubIpc } from './github-ipc.js';
 import { handleXIpc } from './x-skill.js';
 import {
   ASSISTANT_NAME,
@@ -567,6 +568,16 @@ export async function processTaskIpc(
       break;
 
     default: {
+      const githubHandled = await handleGithubIpc(
+        data as Record<string, unknown>,
+        sourceGroup,
+        isMain,
+        DATA_DIR,
+      );
+      if (githubHandled) {
+        break;
+      }
+
       const handled = await handleXIpc(
         data as Record<string, unknown>,
         sourceGroup,

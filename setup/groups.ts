@@ -48,10 +48,35 @@ async function listGroups(limit: number): Promise<void> {
   }
 
   const db = new Database(dbPath, { readonly: true });
+  const columns = new Set(
+    (
+      db.prepare(`PRAGMA table_info(chats)`).all() as Array<{ name: string }>
+    ).map((c) => c.name),
+  );
+  const isGroupExpr = columns.has('is_group')
+    ? `CASE
+        WHEN COALESCE(is_group, 0) = 1 THEN 1
+        WHEN jid LIKE '%@g.us' THEN 1
+        WHEN jid LIKE 'dc:%' THEN 1
+        WHEN jid LIKE 'slack:%' AND jid NOT LIKE 'slack:D%' THEN 1
+        ELSE 0
+      END`
+    : `CASE
+        WHEN jid LIKE '%@g.us' THEN 1
+        WHEN jid LIKE 'dc:%' THEN 1
+        WHEN jid LIKE 'slack:%' AND jid NOT LIKE 'slack:D%' THEN 1
+        ELSE 0
+      END`;
+  const statusClause = columns.has('status')
+    ? `AND COALESCE(status, 'active') <> 'closed'`
+    : '';
   const rows = db
     .prepare(
       `SELECT jid, name FROM chats
-     WHERE jid LIKE '%@g.us' AND jid <> '__group_sync__' AND name <> jid
+     WHERE jid <> '__group_sync__'
+       AND name <> jid
+       AND ${isGroupExpr} = 1
+       ${statusClause}
      ORDER BY last_message_time DESC
      LIMIT ?`,
     )
@@ -128,10 +153,36 @@ if (!fs.existsSync(authDir)) {
 
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
-db.exec('CREATE TABLE IF NOT EXISTS chats (jid TEXT PRIMARY KEY, name TEXT, last_message_time TEXT)');
+db.exec(\`
+CREATE TABLE IF NOT EXISTS chats (
+  jid TEXT PRIMARY KEY,
+  name TEXT,
+  last_message_time TEXT,
+  channel TEXT,
+  is_group INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active',
+  closed_at TEXT
+);
+\`);
+
+for (const sql of [
+  'ALTER TABLE chats ADD COLUMN channel TEXT',
+  'ALTER TABLE chats ADD COLUMN is_group INTEGER DEFAULT 0',
+  "ALTER TABLE chats ADD COLUMN status TEXT DEFAULT 'active'",
+  'ALTER TABLE chats ADD COLUMN closed_at TEXT',
+]) {
+  try { db.exec(sql); } catch { /* column already exists */ }
+}
 
 const upsert = db.prepare(
-  'INSERT INTO chats (jid, name, last_message_time) VALUES (?, ?, ?) ON CONFLICT(jid) DO UPDATE SET name = excluded.name'
+  \`INSERT INTO chats (jid, name, last_message_time, channel, is_group, status, closed_at)
+   VALUES (?, ?, ?, 'whatsapp', 1, 'active', NULL)
+   ON CONFLICT(jid) DO UPDATE SET
+     name = excluded.name,
+     channel = 'whatsapp',
+     is_group = 1,
+     status = 'active',
+     closed_at = NULL\`
 );
 
 const { state, saveCreds } = await useMultiFileAuthState(authDir);
@@ -156,12 +207,25 @@ sock.ev.on('connection.update', async (update) => {
       const groups = await sock.groupFetchAllParticipating();
       const now = new Date().toISOString();
       let count = 0;
+      const activeJids = [];
       for (const [jid, metadata] of Object.entries(groups)) {
         if (metadata.subject) {
           upsert.run(jid, metadata.subject, now);
+          activeJids.push(jid);
           count++;
         }
       }
+      const placeholders = activeJids.map(() => '?').join(', ');
+      const params = [now, ...activeJids];
+      db.prepare(\`
+        UPDATE chats
+        SET status = 'closed', closed_at = ?
+        WHERE channel = 'whatsapp'
+          AND is_group = 1
+          AND jid <> '__group_sync__'
+          AND COALESCE(status, 'active') <> 'closed'
+          \${activeJids.length > 0 ? \`AND jid NOT IN (\${placeholders})\` : ''}
+      \`).run(...params);
       console.log('SYNCED:' + count);
     } catch (err) {
       console.error('FETCH_ERROR:' + err.message);
@@ -205,7 +269,11 @@ sock.ev.on('connection.update', async (update) => {
       const db = new Database(dbPath, { readonly: true });
       const row = db
         .prepare(
-          "SELECT COUNT(*) as count FROM chats WHERE jid LIKE '%@g.us' AND jid <> '__group_sync__'",
+          `SELECT COUNT(*) as count
+           FROM chats
+           WHERE jid <> '__group_sync__'
+             AND COALESCE(is_group, 0) = 1
+             AND COALESCE(status, 'active') <> 'closed'`,
         )
         .get() as { count: number };
       groupsInDb = row.count;

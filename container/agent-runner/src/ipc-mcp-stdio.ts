@@ -15,6 +15,7 @@ const IPC_DIR = '/workspace/ipc';
 const MESSAGES_DIR = path.join(IPC_DIR, 'messages');
 const TASKS_DIR = path.join(IPC_DIR, 'tasks');
 const X_RESULTS_DIR = path.join(IPC_DIR, 'x_results');
+const GITHUB_RESULTS_DIR = path.join(IPC_DIR, 'github_results');
 
 // Context from environment variables (set by the agent runner)
 const chatJid = process.env.NANOCLAW_CHAT_JID!;
@@ -415,6 +416,40 @@ server.tool(
 );
 
 server.tool(
+  'refresh_groups',
+  'Refresh the consolidated chat/group list from connected platforms. Main group only. Closed or archived groups are removed from available_groups.json.',
+  {},
+  async () => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can refresh groups.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    writeIpcFile(TASKS_DIR, {
+      type: 'refresh_groups',
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Group refresh requested. available_groups.json will update after the host sync completes.',
+        },
+      ],
+    };
+  },
+);
+
+server.tool(
   'register_group',
   `Register a new chat/group so the agent can respond to messages there. Main group only.
 
@@ -464,6 +499,219 @@ Use available_groups.json to find the JID for a group. The folder name must be c
           text: `Group "${args.name}" registered. It will start receiving messages immediately.`,
         },
       ],
+    };
+  },
+);
+
+// GitHub integration tools (main group only)
+type IpcToolResult = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+};
+
+async function waitForGithubResult(
+  requestId: string,
+  maxWait = 60000,
+): Promise<IpcToolResult> {
+  const resultFile = path.join(GITHUB_RESULTS_DIR, `${requestId}.json`);
+  const pollInterval = 1000;
+  let elapsed = 0;
+  while (elapsed < maxWait) {
+    if (fs.existsSync(resultFile)) {
+      try {
+        const result = JSON.parse(fs.readFileSync(resultFile, 'utf-8'));
+        fs.unlinkSync(resultFile);
+        return result;
+      } catch {
+        return { success: false, message: 'Failed to read result' };
+      }
+    }
+    await new Promise((r) => setTimeout(r, pollInterval));
+    elapsed += pollInterval;
+  }
+  return { success: false, message: 'Request timed out' };
+}
+
+function formatIpcResult(result: IpcToolResult): string {
+  if (result.data === undefined) {
+    return result.message;
+  }
+  return `${result.message}\n\n${JSON.stringify(result.data, null, 2)}`;
+}
+
+server.tool(
+  'github_list_repos',
+  'List GitHub repositories available to the authenticated host account. Main group only.',
+  {
+    owner: z
+      .string()
+      .optional()
+      .describe(
+        'Optional GitHub user or organization owner. Omit for the authenticated account.',
+      ),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(50)
+      .describe('Maximum repositories to return, from 1 to 100.'),
+    visibility: z
+      .enum(['public', 'private', 'internal'])
+      .optional()
+      .describe('Optional visibility filter.'),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'GitHub tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `gh-list-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeIpcFile(TASKS_DIR, {
+      type: 'github_list_repos',
+      requestId,
+      owner: args.owner || undefined,
+      limit: args.limit,
+      visibility: args.visibility || undefined,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForGithubResult(requestId);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
+    };
+  },
+);
+
+server.tool(
+  'github_view_repo',
+  'View GitHub repository metadata. Main group only. Use owner/name or a github.com URL.',
+  {
+    repository: z
+      .string()
+      .describe('Repository in owner/name format, or a github.com URL.'),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'GitHub tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `gh-view-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeIpcFile(TASKS_DIR, {
+      type: 'github_view_repo',
+      requestId,
+      repository: args.repository,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForGithubResult(requestId);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
+    };
+  },
+);
+
+server.tool(
+  'github_create_repo',
+  'Create a new GitHub repository with the host account. Main group only. Use only after the user explicitly asks to create a repo. Defaults to private. Refuses tetsuclaw-core.',
+  {
+    name: z
+      .string()
+      .describe(
+        'New repository name only, without owner. Use letters, numbers, periods, underscores, and hyphens.',
+      ),
+    owner: z
+      .string()
+      .optional()
+      .describe(
+        'Optional GitHub user or organization owner. Omit for the authenticated account.',
+      ),
+    description: z.string().optional().describe('Repository description.'),
+    visibility: z
+      .enum(['private', 'public', 'internal'])
+      .default('private')
+      .describe('Repository visibility. Defaults to private.'),
+    homepage: z.string().optional().describe('Optional homepage URL.'),
+    gitignore: z
+      .string()
+      .optional()
+      .describe('Optional GitHub gitignore template name, e.g. Node.'),
+    license: z
+      .string()
+      .optional()
+      .describe('Optional license keyword, e.g. mit.'),
+    add_readme: z
+      .boolean()
+      .default(false)
+      .describe('Whether to initialize the repository with a README.'),
+    confirm_creation: z
+      .boolean()
+      .describe(
+        'Must be true. Set this only when the user explicitly requested repository creation.',
+      ),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'GitHub tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+    if (!args.confirm_creation) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Repository creation requires an explicit user request.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `gh-create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeIpcFile(TASKS_DIR, {
+      type: 'github_create_repo',
+      requestId,
+      name: args.name,
+      owner: args.owner || undefined,
+      description: args.description || undefined,
+      visibility: args.visibility,
+      homepage: args.homepage || undefined,
+      gitignore: args.gitignore || undefined,
+      license: args.license || undefined,
+      addReadme: args.add_readme,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForGithubResult(requestId);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
     };
   },
 );

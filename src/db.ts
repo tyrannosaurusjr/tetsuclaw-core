@@ -30,7 +30,9 @@ function createSchema(database: Database.Database): void {
       name TEXT,
       last_message_time TEXT,
       channel TEXT,
-      is_group INTEGER DEFAULT 0
+      is_group INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      closed_at TEXT
     );
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT,
@@ -168,22 +170,40 @@ function createSchema(database: Database.Database): void {
   try {
     database.exec(`ALTER TABLE chats ADD COLUMN channel TEXT`);
     database.exec(`ALTER TABLE chats ADD COLUMN is_group INTEGER DEFAULT 0`);
-    // Backfill from JID patterns
-    database.exec(
-      `UPDATE chats SET channel = 'whatsapp', is_group = 1 WHERE jid LIKE '%@g.us'`,
-    );
-    database.exec(
-      `UPDATE chats SET channel = 'whatsapp', is_group = 0 WHERE jid LIKE '%@s.whatsapp.net'`,
-    );
-    database.exec(
-      `UPDATE chats SET channel = 'discord', is_group = 1 WHERE jid LIKE 'dc:%'`,
-    );
-    database.exec(
-      `UPDATE chats SET channel = 'telegram', is_group = 0 WHERE jid LIKE 'tg:%'`,
-    );
   } catch {
     /* columns already exist */
   }
+
+  // Add chat status columns if they don't exist (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE chats ADD COLUMN status TEXT DEFAULT 'active'`);
+  } catch {
+    /* column already exists */
+  }
+  try {
+    database.exec(`ALTER TABLE chats ADD COLUMN closed_at TEXT`);
+  } catch {
+    /* column already exists */
+  }
+
+  // Backfill metadata from JID patterns. Keep Telegram conservative: legacy
+  // positive/negative IDs are not enough to distinguish every chat type safely.
+  database.exec(`
+    UPDATE chats SET channel = 'whatsapp', is_group = 1
+    WHERE jid LIKE '%@g.us' AND (channel IS NULL OR channel = '' OR is_group = 0);
+    UPDATE chats SET channel = 'whatsapp', is_group = 0
+    WHERE jid LIKE '%@s.whatsapp.net' AND (channel IS NULL OR channel = '');
+    UPDATE chats SET channel = 'discord', is_group = 1
+    WHERE jid LIKE 'dc:%' AND (channel IS NULL OR channel = '' OR is_group = 0);
+    UPDATE chats SET channel = 'telegram', is_group = 0
+    WHERE jid LIKE 'tg:%' AND (channel IS NULL OR channel = '');
+    UPDATE chats SET channel = 'slack',
+      is_group = CASE WHEN jid LIKE 'slack:D%' THEN 0 ELSE 1 END
+    WHERE jid LIKE 'slack:%'
+      AND (channel IS NULL OR channel = '' OR (is_group = 0 AND jid NOT LIKE 'slack:D%'));
+    UPDATE chats SET status = 'active'
+    WHERE status IS NULL OR status = '';
+  `);
 
   // Add reply context columns if they don't exist (migration for existing DBs)
   try {
@@ -230,33 +250,65 @@ export function storeChatMetadata(
   channel?: string,
   isGroup?: boolean,
 ): void {
-  const ch = channel ?? null;
-  const group = isGroup === undefined ? null : isGroup ? 1 : 0;
+  const inferred = inferChatMetadata(chatJid);
+  const ch = channel ?? inferred.channel;
+  const group = isGroup === undefined ? inferred.isGroup : isGroup ? 1 : 0;
 
   if (name) {
     // Update with name, preserving existing timestamp if newer
     db.prepare(
       `
-      INSERT INTO chats (jid, name, last_message_time, channel, is_group) VALUES (?, ?, ?, ?, ?)
+      INSERT INTO chats (jid, name, last_message_time, channel, is_group, status, closed_at)
+      VALUES (?, ?, ?, ?, ?, 'active', NULL)
       ON CONFLICT(jid) DO UPDATE SET
         name = excluded.name,
         last_message_time = MAX(last_message_time, excluded.last_message_time),
         channel = COALESCE(excluded.channel, channel),
-        is_group = COALESCE(excluded.is_group, is_group)
+        is_group = COALESCE(excluded.is_group, is_group),
+        status = 'active',
+        closed_at = NULL
     `,
     ).run(chatJid, name, timestamp, ch, group);
   } else {
     // Update timestamp only, preserve existing name if any
     db.prepare(
       `
-      INSERT INTO chats (jid, name, last_message_time, channel, is_group) VALUES (?, ?, ?, ?, ?)
+      INSERT INTO chats (jid, name, last_message_time, channel, is_group, status, closed_at)
+      VALUES (?, ?, ?, ?, ?, 'active', NULL)
       ON CONFLICT(jid) DO UPDATE SET
         last_message_time = MAX(last_message_time, excluded.last_message_time),
         channel = COALESCE(excluded.channel, channel),
-        is_group = COALESCE(excluded.is_group, is_group)
+        is_group = COALESCE(excluded.is_group, is_group),
+        status = 'active',
+        closed_at = NULL
     `,
     ).run(chatJid, chatJid, timestamp, ch, group);
   }
+}
+
+function inferChatMetadata(chatJid: string): {
+  channel: string | null;
+  isGroup: number | null;
+} {
+  if (chatJid.endsWith('@g.us')) {
+    return { channel: 'whatsapp', isGroup: 1 };
+  }
+  if (chatJid.endsWith('@s.whatsapp.net')) {
+    return { channel: 'whatsapp', isGroup: 0 };
+  }
+  if (chatJid.startsWith('dc:')) {
+    return { channel: 'discord', isGroup: 1 };
+  }
+  if (chatJid.startsWith('tg:')) {
+    return { channel: 'telegram', isGroup: null };
+  }
+  if (chatJid.startsWith('slack:')) {
+    return {
+      channel: 'slack',
+      isGroup: chatJid.startsWith('slack:D') ? 0 : 1,
+    };
+  }
+  return { channel: null, isGroup: null };
 }
 
 /**
@@ -265,20 +317,70 @@ export function storeChatMetadata(
  * Used during group metadata sync.
  */
 export function updateChatName(chatJid: string, name: string): void {
+  const inferred = inferChatMetadata(chatJid);
   db.prepare(
     `
-    INSERT INTO chats (jid, name, last_message_time) VALUES (?, ?, ?)
-    ON CONFLICT(jid) DO UPDATE SET name = excluded.name
+    INSERT INTO chats (jid, name, last_message_time, channel, is_group, status, closed_at)
+    VALUES (?, ?, ?, ?, ?, 'active', NULL)
+    ON CONFLICT(jid) DO UPDATE SET
+      name = excluded.name,
+      channel = COALESCE(excluded.channel, channel),
+      is_group = COALESCE(excluded.is_group, is_group),
+      status = 'active',
+      closed_at = NULL
   `,
-  ).run(chatJid, name, new Date().toISOString());
+  ).run(
+    chatJid,
+    name,
+    new Date().toISOString(),
+    inferred.channel,
+    inferred.isGroup,
+  );
+}
+
+/**
+ * Mark group chats for a channel as closed when the platform no longer returns
+ * them during an authoritative sync. Message history is preserved.
+ */
+export function markChannelGroupsClosed(
+  channel: string,
+  activeJids: string[],
+): number {
+  const closedAt = new Date().toISOString();
+  const params: Array<string> = [closedAt, channel];
+  let activeFilter = '';
+
+  if (activeJids.length > 0) {
+    const placeholders = activeJids.map(() => '?').join(', ');
+    activeFilter = `AND jid NOT IN (${placeholders})`;
+    params.push(...activeJids);
+  }
+
+  const info = db
+    .prepare(
+      `
+      UPDATE chats
+      SET status = 'closed', closed_at = ?
+      WHERE channel = ?
+        AND is_group = 1
+        AND jid <> '__group_sync__'
+        AND COALESCE(status, 'active') <> 'closed'
+        ${activeFilter}
+    `,
+    )
+    .run(...params);
+
+  return info.changes;
 }
 
 export interface ChatInfo {
   jid: string;
   name: string;
   last_message_time: string;
-  channel: string;
-  is_group: number;
+  channel: string | null;
+  is_group: number | null;
+  status: string | null;
+  closed_at: string | null;
 }
 
 /**
@@ -288,7 +390,7 @@ export function getAllChats(): ChatInfo[] {
   return db
     .prepare(
       `
-    SELECT jid, name, last_message_time, channel, is_group
+    SELECT jid, name, last_message_time, channel, is_group, status, closed_at
     FROM chats
     ORDER BY last_message_time DESC
   `,

@@ -26,6 +26,7 @@ vi.mock('../db.js', () => ({
   getLastGroupSync: vi.fn(() => null),
   getLatestMessage: vi.fn(() => undefined),
   getMessageFromMe: vi.fn(() => false),
+  markChannelGroupsClosed: vi.fn(),
   setLastGroupSync: vi.fn(),
   storeReaction: vi.fn(),
   updateChatName: vi.fn(),
@@ -125,7 +126,12 @@ vi.mock('@whiskeysockets/baileys', () => {
 
 import { WhatsAppChannel, WhatsAppChannelOpts } from './whatsapp.js';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { getLastGroupSync, updateChatName, setLastGroupSync } from '../db.js';
+import {
+  getLastGroupSync,
+  markChannelGroupsClosed,
+  updateChatName,
+  setLastGroupSync,
+} from '../db.js';
 import { isImageMessage, processImage } from '../image.js';
 import { transcribeAudioMessage } from '../transcription.js';
 
@@ -1131,6 +1137,10 @@ describe('WhatsAppChannel', () => {
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
       expect(updateChatName).toHaveBeenCalledWith('group1@g.us', 'Group One');
       expect(updateChatName).toHaveBeenCalledWith('group2@g.us', 'Group Two');
+      expect(markChannelGroupsClosed).toHaveBeenCalledWith('whatsapp', [
+        'group1@g.us',
+        'group2@g.us',
+      ]);
       expect(setLastGroupSync).toHaveBeenCalled();
     });
 
@@ -1168,6 +1178,9 @@ describe('WhatsAppChannel', () => {
 
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
       expect(updateChatName).toHaveBeenCalledWith('group@g.us', 'Forced Group');
+      expect(markChannelGroupsClosed).toHaveBeenCalledWith('whatsapp', [
+        'group@g.us',
+      ]);
     });
 
     it('handles group sync failure gracefully', async () => {
@@ -1198,11 +1211,15 @@ describe('WhatsAppChannel', () => {
 
       // Clear any calls from the automatic sync on connect
       vi.mocked(updateChatName).mockClear();
+      vi.mocked(markChannelGroupsClosed).mockClear();
 
       await channel.syncGroupMetadata(true);
 
       expect(updateChatName).toHaveBeenCalledTimes(1);
       expect(updateChatName).toHaveBeenCalledWith('group1@g.us', 'Has Subject');
+      expect(markChannelGroupsClosed).toHaveBeenCalledWith('whatsapp', [
+        'group1@g.us',
+      ]);
     });
   });
 

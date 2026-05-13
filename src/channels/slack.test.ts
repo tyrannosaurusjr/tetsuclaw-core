@@ -23,6 +23,7 @@ vi.mock('../logger.js', () => ({
 
 // Mock db
 vi.mock('../db.js', () => ({
+  markChannelGroupsClosed: vi.fn(),
   updateChatName: vi.fn(),
 }));
 
@@ -83,7 +84,7 @@ vi.mock('../env.js', () => ({
 }));
 
 import { SlackChannel, SlackChannelOpts } from './slack.js';
-import { updateChatName } from '../db.js';
+import { markChannelGroupsClosed, updateChatName } from '../db.js';
 import { readEnvFile } from '../env.js';
 
 // --- Test helpers ---
@@ -751,6 +752,10 @@ describe('SlackChannel', () => {
       expect(updateChatName).toHaveBeenCalledWith('slack:C002', 'random');
       // Non-member channels are skipped
       expect(updateChatName).not.toHaveBeenCalledWith('slack:C003', 'external');
+      expect(markChannelGroupsClosed).toHaveBeenCalledWith('slack', [
+        'slack:C001',
+        'slack:C002',
+      ]);
     });
 
     it('handles API errors gracefully', async () => {
@@ -845,6 +850,10 @@ describe('SlackChannel', () => {
       // Both channels from both pages stored
       expect(updateChatName).toHaveBeenCalledWith('slack:C001', 'general');
       expect(updateChatName).toHaveBeenCalledWith('slack:C002', 'random');
+      expect(markChannelGroupsClosed).toHaveBeenCalledWith('slack', [
+        'slack:C001',
+        'slack:C002',
+      ]);
     });
   });
 

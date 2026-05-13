@@ -21,6 +21,7 @@ import {
 import {
   getLastGroupSync,
   getLatestMessage,
+  markChannelGroupsClosed,
   setLastGroupSync,
   storeReaction,
   updateChatName,
@@ -463,15 +464,18 @@ export class WhatsAppChannel implements Channel {
       const groups = await this.sock.groupFetchAllParticipating();
 
       let count = 0;
+      const activeJids: string[] = [];
       for (const [jid, metadata] of Object.entries(groups)) {
         if (metadata.subject) {
           updateChatName(jid, metadata.subject);
+          activeJids.push(jid);
           count++;
         }
       }
 
+      const closed = markChannelGroupsClosed('whatsapp', activeJids);
       setLastGroupSync();
-      logger.info({ count }, 'Group metadata synced');
+      logger.info({ count, closed }, 'Group metadata synced');
     } catch (err) {
       logger.error({ err }, 'Failed to sync group metadata');
     }

@@ -23,6 +23,8 @@ groups/telegram_main/agents/*
 !groups/telegram_main/agents/travel/
 groups/telegram_main/agents/travel/*
 !groups/telegram_main/agents/travel/CLAUDE.md
+!groups/telegram_main/board/
+!groups/telegram_main/board/**
 !groups/telegram_main/user/
 groups/telegram_main/user/*
 !groups/telegram_main/user/travel_personas.json.example

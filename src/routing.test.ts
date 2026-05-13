@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { _initTestDatabase, storeChatMetadata } from './db.js';
+import {
+  _initTestDatabase,
+  markChannelGroupsClosed,
+  storeChatMetadata,
+} from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
 
 beforeEach(() => {
@@ -161,6 +165,29 @@ describe('getAvailableGroups', () => {
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
     expect(groups[0].jid).toBe('group@g.us');
+  });
+
+  it('excludes closed groups', () => {
+    storeChatMetadata(
+      'open@g.us',
+      '2024-01-01T00:00:02.000Z',
+      'Open',
+      'whatsapp',
+      true,
+    );
+    storeChatMetadata(
+      'closed@g.us',
+      '2024-01-01T00:00:01.000Z',
+      'Closed',
+      'whatsapp',
+      true,
+    );
+
+    markChannelGroupsClosed('whatsapp', ['open@g.us']);
+
+    const groups = getAvailableGroups();
+    expect(groups).toHaveLength(1);
+    expect(groups[0].jid).toBe('open@g.us');
   });
 
   it('returns empty array when no chats exist', () => {
