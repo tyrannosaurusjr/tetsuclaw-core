@@ -8,6 +8,7 @@ import { readEnvFile } from '../env.js';
 import { processImage } from '../image.js';
 import { resolveGroupFolderPath } from '../group-folder.js';
 import { logger } from '../logger.js';
+import { isSenderAllowed, loadSenderAllowlist } from '../sender-allowlist.js';
 import {
   getThreadId,
   loadTopics,
@@ -262,7 +263,9 @@ export class TelegramChannel implements Channel {
     // others' messages; without it, only the bot's own messages are deleted.
     this.bot.command('clear', async (ctx) => {
       const chatId = ctx.chat.id;
-      const currentMsgId = ctx.message.message_id;
+      const message = ctx.message;
+      if (!message) return;
+      const currentMsgId = message.message_id;
       const senderId = ctx.from?.id?.toString() ?? '';
       const chatJid = `tg:${chatId}`;
 
@@ -732,4 +735,3 @@ registerChannel('telegram', (opts: ChannelOpts) => {
   }
   return new TelegramChannel(token, opts);
 });
-
