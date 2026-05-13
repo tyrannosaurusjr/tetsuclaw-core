@@ -256,9 +256,52 @@ export class TelegramChannel implements Channel {
       ctx.reply(`${ASSISTANT_NAME} is online.`);
     });
 
+    // Command to clear recent chat messages.
+    // Deletes up to 200 messages preceding /clear in batches of 100.
+    // Bot must be an admin with "Delete messages" permission to remove
+    // others' messages; without it, only the bot's own messages are deleted.
+    this.bot.command('clear', async (ctx) => {
+      const chatId = ctx.chat.id;
+      const currentMsgId = ctx.message.message_id;
+      const senderId = ctx.from?.id?.toString() ?? '';
+      const chatJid = `tg:${chatId}`;
+
+      // Only allow senders on the allowlist
+      const allowlistCfg = loadSenderAllowlist();
+      if (!isSenderAllowed(chatJid, senderId, allowlistCfg)) {
+        logger.debug({ chatJid, senderId }, '/clear: sender not allowed');
+        return;
+      }
+
+      // Delete the /clear command message itself
+      await ctx.api.deleteMessage(chatId, currentMsgId).catch(() => {});
+
+      // Delete up to 200 preceding messages in batches of 100
+      const BATCH = 100;
+      const LOOKBACK = 200;
+      const start = Math.max(1, currentMsgId - LOOKBACK);
+
+      for (let from = currentMsgId - 1; from >= start; from -= BATCH) {
+        const ids: number[] = [];
+        for (let id = from; id >= Math.max(start, from - BATCH + 1); id--) {
+          ids.push(id);
+        }
+        // deleteMessages silently skips IDs that don't exist or can't be deleted
+        await ctx.api.deleteMessages(chatId, ids).catch(() => {});
+      }
+
+      // Brief confirmation that self-deletes after 3 seconds
+      const confirm = await ctx.reply('🗑️').catch(() => null);
+      if (confirm) {
+        setTimeout(() => {
+          ctx.api.deleteMessage(chatId, confirm.message_id).catch(() => {});
+        }, 3000);
+      }
+    });
+
     // Telegram bot commands handled above — skip them in the general handler
     // so they don't also get stored as messages. All other /commands flow through.
-    const TELEGRAM_BOT_COMMANDS = new Set(['chatid', 'ping']);
+    const TELEGRAM_BOT_COMMANDS = new Set(['chatid', 'ping', 'clear']);
 
     this.bot.on('message:text', async (ctx) => {
       if (ctx.message.text.startsWith('/')) {
@@ -689,3 +732,4 @@ registerChannel('telegram', (opts: ChannelOpts) => {
   }
   return new TelegramChannel(token, opts);
 });
+
