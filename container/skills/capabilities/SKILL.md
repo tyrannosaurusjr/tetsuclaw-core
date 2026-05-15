@@ -41,7 +41,7 @@ Read the allowed tools from your SDK configuration. You always have access to:
 - **Web:** WebSearch, WebFetch
 - **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
 - **Other:** TodoWrite, ToolSearch, Skill, NotebookEdit
-- **MCP:** mcp**nanoclaw**\* (messaging, tasks, group management, GitHub, X)
+- **MCP:** mcp**nanoclaw**\* (messaging, tasks, group management, GitHub, model providers, X)
 
 ### 3. MCP server tools
 
@@ -59,6 +59,8 @@ The NanoClaw MCP server exposes these tools (via `mcp__nanoclaw__*` prefix):
 - `github_list_repos` — list GitHub repositories available to the host account (main only)
 - `github_view_repo` — inspect repository metadata (main only)
 - `github_create_repo` — create a new repository, private by default; refuses `tetsuclaw-core` (main only)
+- `model_status` — check host-mediated Codex/OpenAI, Gemini, Ollama, and Claude availability (main only)
+- `model_ask` — ask Codex/OpenAI, Gemini, Ollama, or Claude for a second opinion via host-mediated credentials (main only)
 - `x_post`, `x_like`, `x_reply`, `x_retweet`, `x_quote` — X/Twitter actions (main only)
 
 ### 4. Container skills (Bash tools)
@@ -92,7 +94,7 @@ Present the report as a clean, readable message. Example:
 • Core: Bash, Read, Write, Edit, Glob, Grep
 • Web: WebSearch, WebFetch
 • Orchestration: Task, TeamCreate, SendMessage
-• MCP: send_message, schedule_task, list_tasks, pause/resume/cancel/update_task, refresh_groups, register_group, GitHub tools
+• MCP: send_message, schedule_task, list_tasks, pause/resume/cancel/update_task, refresh_groups, register_group, GitHub tools, model provider tools
 
 *Container Tools:*
 • agent-browser: ✓

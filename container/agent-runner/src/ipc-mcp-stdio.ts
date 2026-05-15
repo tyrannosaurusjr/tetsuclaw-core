@@ -16,6 +16,7 @@ const MESSAGES_DIR = path.join(IPC_DIR, 'messages');
 const TASKS_DIR = path.join(IPC_DIR, 'tasks');
 const X_RESULTS_DIR = path.join(IPC_DIR, 'x_results');
 const GITHUB_RESULTS_DIR = path.join(IPC_DIR, 'github_results');
+const MODEL_RESULTS_DIR = path.join(IPC_DIR, 'model_results');
 
 // Context from environment variables (set by the agent runner)
 const chatJid = process.env.NANOCLAW_CHAT_JID!;
@@ -709,6 +710,131 @@ server.tool(
       timestamp: new Date().toISOString(),
     });
     const result = await waitForGithubResult(requestId);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
+    };
+  },
+);
+
+// Model provider tools (main group only)
+async function waitForModelResult(
+  requestId: string,
+  maxWait = 180000,
+): Promise<IpcToolResult> {
+  const resultFile = path.join(MODEL_RESULTS_DIR, `${requestId}.json`);
+  const pollInterval = 1000;
+  let elapsed = 0;
+  while (elapsed < maxWait) {
+    if (fs.existsSync(resultFile)) {
+      try {
+        const result = JSON.parse(fs.readFileSync(resultFile, 'utf-8'));
+        fs.unlinkSync(resultFile);
+        return result;
+      } catch {
+        return { success: false, message: 'Failed to read result' };
+      }
+    }
+    await new Promise((r) => setTimeout(r, pollInterval));
+    elapsed += pollInterval;
+  }
+  return { success: false, message: 'Request timed out' };
+}
+
+const modelProviderSchema = z
+  .enum(['auto', 'codex', 'gemini', 'ollama', 'claude'])
+  .default('auto');
+
+server.tool(
+  'model_status',
+  'Check host-mediated model provider availability for Codex/OpenAI, Gemini, Ollama, and Claude. Main group only. Does not reveal credentials.',
+  {
+    provider: modelProviderSchema
+      .optional()
+      .describe('Optional provider to check. Omit or use auto to check all.'),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Model provider tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `model-status-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeIpcFile(TASKS_DIR, {
+      type: 'model_status',
+      requestId,
+      provider: args.provider || 'auto',
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForModelResult(requestId, 30000);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
+    };
+  },
+);
+
+server.tool(
+  'model_ask',
+  'Ask a host-mediated model provider for a second opinion. Main group only. Use provider=auto for Codex → Gemini → Ollama → Claude fallback. Do not send sensitive data to external providers unless the user explicitly approves; Ollama is local when configured.',
+  {
+    provider: modelProviderSchema.describe(
+      'Provider to use. auto tries the host fallback order.',
+    ),
+    prompt: z.string().describe('Prompt to send to the selected provider.'),
+    system: z
+      .string()
+      .optional()
+      .describe('Optional system/developer instruction for the provider.'),
+    model: z
+      .string()
+      .optional()
+      .describe(
+        'Optional model override. If omitted, the host provider default is used.',
+      ),
+    timeout_seconds: z
+      .number()
+      .int()
+      .min(5)
+      .max(300)
+      .default(120)
+      .describe('Maximum time to wait, from 5 to 300 seconds.'),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Model provider tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `model-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const timeoutMs = args.timeout_seconds * 1000;
+    writeIpcFile(TASKS_DIR, {
+      type: 'model_ask',
+      requestId,
+      provider: args.provider,
+      prompt: args.prompt,
+      system: args.system || undefined,
+      model: args.model || undefined,
+      timeoutMs,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForModelResult(requestId, timeoutMs + 5000);
     return {
       content: [{ type: 'text' as const, text: formatIpcResult(result) }],
       isError: !result.success,

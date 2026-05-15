@@ -4,6 +4,7 @@ import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
 
 import { handleGithubIpc } from './github-ipc.js';
+import { handleModelProviderIpc } from './model-provider-ipc.js';
 import { handleXIpc } from './x-skill.js';
 import {
   ASSISTANT_NAME,
@@ -575,6 +576,16 @@ export async function processTaskIpc(
         DATA_DIR,
       );
       if (githubHandled) {
+        break;
+      }
+
+      const modelProviderHandled = await handleModelProviderIpc(
+        data as Record<string, unknown>,
+        sourceGroup,
+        isMain,
+        DATA_DIR,
+      );
+      if (modelProviderHandled) {
         break;
       }
 

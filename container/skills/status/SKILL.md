@@ -51,7 +51,7 @@ Confirm which tool families are available to you:
 - **Core:** Bash, Read, Write, Edit, Glob, Grep
 - **Web:** WebSearch, WebFetch
 - **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **MCP:** mcp**nanoclaw**\* (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, refresh_groups, register_group, github_list_repos, github_view_repo, github_create_repo)
+- **MCP:** mcp**nanoclaw**\* (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, refresh_groups, register_group, GitHub tools, model provider tools)
 
 ### 4. Container utilities
 
@@ -61,7 +61,15 @@ node --version 2>/dev/null
 claude --version 2>/dev/null
 ```
 
-### 5. Task snapshot
+### 5. Model provider snapshot
+
+Use the MCP tool to check model routing:
+
+```
+Call mcp__nanoclaw__model_status to check Codex/OpenAI, Gemini, Ollama, and Claude availability.
+```
+
+### 6. Task snapshot
 
 Use the MCP tool to list tasks:
 
@@ -95,6 +103,12 @@ Present as a clean, readable message:
 • agent-browser: ✓ / not installed
 • Node: vXX.X.X
 • Claude Code: vX.X.X
+
+*Model Providers:*
+• Codex/OpenAI: available / not configured
+• Gemini: available / not configured
+• Ollama: available / not configured
+• Claude: available / not configured
 
 *Scheduled Tasks:*
 • N active tasks / No scheduled tasks

@@ -122,6 +122,11 @@ Add API keys to `.env` for additional integrations:
 | `ONECLI_URL` | No | Credential gateway URL (default: http://127.0.0.1:10254) |
 | `OPENAI_API_KEY` | No | For voice transcription (Whisper) |
 | `OLLAMA_HOST` | No | Local LLM endpoint |
+| `MODEL_PROVIDER_ORDER` | No | Fallback order for `model_ask(auto)`, default `codex,gemini,ollama,claude` |
+| `CODEX_BIN` / `CODEX_MODEL` | No | Codex CLI path and optional model override for host-mediated model routing |
+| `GEMINI_BIN` / `GEMINI_MODEL` | No | Gemini CLI path and optional model override for host-mediated model routing |
+| `OLLAMA_MODEL` | No | Ollama model override for host-mediated model routing |
+| `CLAUDE_BIN` / `CLAUDE_MODEL` | No | Claude CLI path and optional model override for model-router fallback |
 | `SLACK_BOT_TOKEN` | No | Slack channel integration |
 | `SLACK_APP_TOKEN` | No | Slack channel integration |
 
