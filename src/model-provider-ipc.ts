@@ -322,14 +322,24 @@ async function runCliProvider(
     args.push(
       'exec',
       '--skip-git-repo-check',
+      '--ephemeral',
       '--sandbox',
       'read-only',
       '--ask-for-approval',
+      'never',
+      '--color',
       'never',
     );
     if (model) args.push('-m', model);
     args.push(options.prompt);
   } else if (provider === 'gemini') {
+    args.push(
+      '--skip-trust',
+      '--approval-mode',
+      'plan',
+      '--output-format',
+      'text',
+    );
     if (model) args.push('-m', model);
     args.push(
       '-p',
