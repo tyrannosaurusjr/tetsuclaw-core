@@ -4,7 +4,7 @@
  * Keeps model CLI credentials on the trusted host process. Container agents send
  * structured IPC requests and receive sanitized text/JSON results.
  */
-import { execFile } from 'child_process';
+import { execFile, type ExecFileOptions } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -51,6 +51,29 @@ const DEFAULT_PROVIDER_ORDER: ModelProvider[] = [
 const MAX_PROMPT_CHARS = 60_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 300_000;
+
+function execFileNoInput(
+  file: string,
+  args: string[],
+  options: ExecFileOptions,
+): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(file, args, options, (error, stdout, stderr) => {
+      if (error) {
+        const enriched = error as Error & {
+          stdout?: string | Buffer;
+          stderr?: string | Buffer;
+        };
+        enriched.stdout = stdout;
+        enriched.stderr = stderr;
+        reject(enriched);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+    child.stdin?.end();
+  });
+}
 
 function writeResult(
   dataDir: string,
@@ -348,15 +371,17 @@ async function runCliProvider(
         : options.prompt,
     );
   } else {
-    args.push('-p', options.prompt, '--output-format', 'text');
+    args.push('--print', '--output-format', 'text');
+    if (options.system) args.push('--system-prompt', options.system);
     if (model) args.push('--model', model);
+    args.push(options.prompt);
   }
 
   const workDir = fs.mkdtempSync(
     path.join(os.tmpdir(), `tetsuclaw-${provider}-`),
   );
   try {
-    const result = await execFileAsync(command, args, {
+    const result = await execFileNoInput(command, args, {
       cwd: workDir,
       timeout: options.timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
