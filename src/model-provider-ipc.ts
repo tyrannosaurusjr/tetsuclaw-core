@@ -44,9 +44,9 @@ interface AskOptions {
 
 const DEFAULT_PROVIDER_ORDER: ModelProvider[] = [
   'codex',
-  'gemini',
-  'ollama',
   'claude',
+  'ollama',
+  'gemini',
 ];
 const MAX_PROMPT_CHARS = 60_000;
 const DEFAULT_TIMEOUT_MS = 120_000;

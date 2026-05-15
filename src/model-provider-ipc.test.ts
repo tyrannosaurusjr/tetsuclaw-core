@@ -15,15 +15,15 @@ describe('model provider IPC helpers', () => {
   it('uses the default provider order when unset or invalid', () => {
     expect(parseProviderOrder(undefined)).toEqual([
       'codex',
-      'gemini',
-      'ollama',
       'claude',
+      'ollama',
+      'gemini',
     ]);
     expect(parseProviderOrder('bad,auto')).toEqual([
       'codex',
-      'gemini',
-      'ollama',
       'claude',
+      'ollama',
+      'gemini',
     ]);
   });
 
