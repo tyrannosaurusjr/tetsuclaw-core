@@ -340,6 +340,11 @@ async function runCliProvider(
   const command = commandFor(provider);
   const model = options.model || defaultModelFor(provider);
   const args: string[] = [];
+  const workDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), `tetsuclaw-${provider}-`),
+  );
+  const codexLastMessagePath =
+    provider === 'codex' ? path.join(workDir, 'last-message.txt') : undefined;
 
   if (provider === 'codex') {
     args.push(
@@ -348,11 +353,12 @@ async function runCliProvider(
       '--ephemeral',
       '--sandbox',
       'read-only',
-      '--ask-for-approval',
-      'never',
       '--color',
       'never',
     );
+    if (codexLastMessagePath) {
+      args.push('--output-last-message', codexLastMessagePath);
+    }
     if (model) args.push('-m', model);
     args.push(options.prompt);
   } else if (provider === 'gemini') {
@@ -377,9 +383,6 @@ async function runCliProvider(
     args.push(options.prompt);
   }
 
-  const workDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), `tetsuclaw-${provider}-`),
-  );
   try {
     const result = await execFileNoInput(command, args, {
       cwd: workDir,
@@ -389,6 +392,10 @@ async function runCliProvider(
     });
     const output = result.stdout.toString().trim();
     const stderr = result.stderr.toString().trim();
+    if (codexLastMessagePath && fs.existsSync(codexLastMessagePath)) {
+      const lastMessage = fs.readFileSync(codexLastMessagePath, 'utf-8').trim();
+      if (lastMessage) return lastMessage;
+    }
     return output || stderr || '(no output)';
   } catch (err) {
     const error = err as Error & {
