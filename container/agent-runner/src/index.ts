@@ -24,6 +24,7 @@ import {
 } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 import { resolveClaudeCodeExecutable } from './claude-executable.js';
+import { createStopCleanupHook } from './stop-cleanup.js';
 
 interface ContainerInput {
   prompt: string;
@@ -580,6 +581,7 @@ async function runQuery(
         PreCompact: [
           { hooks: [createPreCompactHook(containerInput.assistantName)] },
         ],
+        Stop: [{ hooks: [createStopCleanupHook(log)] }],
       },
     },
   })) {
@@ -776,6 +778,7 @@ async function main(): Promise<void> {
             PreCompact: [
               { hooks: [createPreCompactHook(containerInput.assistantName)] },
             ],
+            Stop: [{ hooks: [createStopCleanupHook(log)] }],
           },
         },
       })) {
