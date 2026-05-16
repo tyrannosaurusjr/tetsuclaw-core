@@ -727,6 +727,7 @@ async function main(): Promise<void> {
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
+  const claudeCodeExecutable = resolveClaudeCodeExecutable();
 
   let sessionId = containerInput.sessionId;
   fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
@@ -780,6 +781,7 @@ async function main(): Promise<void> {
         prompt: trimmedPrompt,
         options: {
           cwd: '/workspace/group',
+          pathToClaudeCodeExecutable: claudeCodeExecutable,
           resume: sessionId,
           systemPrompt: undefined,
           allowedTools: [],
