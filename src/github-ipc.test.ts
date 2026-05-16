@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCommitFileTarget,
   buildCreateRepoArgs,
   isProtectedTetsuclawCoreRepo,
   normalizeGithubRepo,
@@ -72,6 +73,60 @@ describe('GitHub IPC helpers', () => {
       buildCreateRepoArgs({
         owner: 'tyrannosaurusjr',
         name: 'tetsuclaw-core',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('builds safe GitHub file commit targets', () => {
+    const result = buildCommitFileTarget({
+      repository: 'tyrannosaurusjr/jacamp',
+      filePath: 'docs/notes.md',
+      content: '# Notes\n',
+      message: 'docs: add notes',
+      branch: 'main',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.repo).toBe('tyrannosaurusjr/jacamp');
+    expect(result.filePath).toBe('docs/notes.md');
+    expect(result.message).toBe('docs: add notes');
+    expect(result.branch).toBe('main');
+  });
+
+  it('rejects unsafe GitHub file commit targets', () => {
+    expect(
+      buildCommitFileTarget({
+        repository: 'tyrannosaurusjr/tetsuclaw-core',
+        filePath: 'README.md',
+        content: 'x',
+        message: 'docs: update readme',
+      }).ok,
+    ).toBe(false);
+    expect(
+      buildCommitFileTarget({
+        repository: 'tyrannosaurusjr/jacamp',
+        filePath: '../README.md',
+        content: 'x',
+        message: 'docs: update readme',
+      }).ok,
+    ).toBe(false);
+    expect(
+      buildCommitFileTarget({
+        repository: 'tyrannosaurusjr/jacamp',
+        filePath: '.github/workflows/ci.yml',
+        content: 'x',
+        message: 'ci: update workflow',
+      }).ok,
+    ).toBe(false);
+    expect(
+      buildCommitFileTarget({
+        repository: 'tyrannosaurusjr/jacamp',
+        filePath: 'docs/notes.md',
+        content: 'x',
+        message: 'docs: update notes',
+        branch: '../bad',
       }).ok,
     ).toBe(false);
   });

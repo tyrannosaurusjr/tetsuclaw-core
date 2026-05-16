@@ -717,6 +717,75 @@ server.tool(
   },
 );
 
+server.tool(
+  'github_commit_file',
+  'Create or update one text file in a GitHub repository using the host account. Main group only. Use only after the user explicitly asks for a GitHub write. Refuses tetsuclaw-core, secrets, git internals, and GitHub Actions workflows.',
+  {
+    repository: z
+      .string()
+      .describe('Repository in owner/name format, e.g. tyrannosaurusjr/jacamp.'),
+    path: z
+      .string()
+      .describe('Relative file path inside the repository, e.g. docs/notes.md.'),
+    content: z
+      .string()
+      .max(1024 * 1024)
+      .describe('Complete UTF-8 text content to write. Limit: 1 MiB.'),
+    message: z.string().describe('Commit message.'),
+    branch: z
+      .string()
+      .optional()
+      .describe('Optional target branch. Omit for the default branch.'),
+    confirm_write: z
+      .boolean()
+      .describe(
+        'Must be true. Set this only when the user explicitly requested a GitHub write.',
+      ),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'GitHub tools are available in the main Tetsuclaw chat only.',
+          },
+        ],
+        isError: true,
+      };
+    }
+    if (!args.confirm_write) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'GitHub file writes require an explicit user request.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const requestId = `gh-file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeIpcFile(TASKS_DIR, {
+      type: 'github_commit_file',
+      requestId,
+      repository: args.repository,
+      path: args.path,
+      content: args.content,
+      message: args.message,
+      branch: args.branch || undefined,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    const result = await waitForGithubResult(requestId);
+    return {
+      content: [{ type: 'text' as const, text: formatIpcResult(result) }],
+      isError: !result.success,
+    };
+  },
+);
+
 // Model provider tools (main group only)
 async function waitForModelResult(
   requestId: string,

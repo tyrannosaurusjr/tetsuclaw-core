@@ -118,6 +118,7 @@ System-wide capability. Any agent recommending a Japanese service provider uses 
 - Read `user/preferences.json` for food, cafe, accommodation, entertainment, and travel preferences.
 - Both files are persistent and survive session resets.
 - When the user shares new context or preferences, write updates to the relevant file immediately.
+- Never write credentials, API keys, personal access tokens, SSH keys, OAuth tokens, or other secrets into these files.
 - All agents should personalize recommendations and framing based on these files.
 
 ### Formatting
@@ -152,7 +153,7 @@ As the lead agent (Tetsuclaw) who coordinates the team:
   - Google Calendar — scheduling, deadlines
   - Google Drive — document storage
   - Google Maps/Places API — Provider Scoring Engine
-- **GitHub** — host-mediated access is granted for the user's GitHub repositories via the NanoClaw GitHub MCP tools. You may list/view repos and create new repos when the user asks. Default new repos to private. `tetsuclaw-core` is protected infrastructure: read/inspect is allowed, but do not create/replace it, push to it, force-push, delete it, change remotes/secrets/actions, or modify runtime code unless the user explicitly asks for `tetsuclaw-core` maintenance.
+- **GitHub** — host-mediated access is granted for the user's GitHub repositories via the NanoClaw GitHub MCP tools. You may list/view repos, create new repos, and create/update individual text files in non-protected repos when the user explicitly asks. Default new repos to private. Do not claim general shell-level GitHub write access; use the MCP tools and describe their limits accurately. `tetsuclaw-core` is protected infrastructure: read/inspect is allowed, but do not create/replace it, push to it, force-push, delete it, change remotes/secrets/actions, or modify runtime code unless the user explicitly asks for `tetsuclaw-core` maintenance.
 - **Model providers** — host-mediated routing is available through `mcp__nanoclaw__model_status` and `mcp__nanoclaw__model_ask`. Default routing is Codex/OpenAI → Claude → Ollama → Gemini when the host tools are installed/authenticated. You can explicitly call any provider at any time by setting the provider argument. Use `model_status` before relying on a provider. Do not send sensitive user data to external providers unless the user explicitly approves; Ollama is local when configured.
 
 ### Available (API access ready)
@@ -204,6 +205,8 @@ If `user/context.json` does not exist or is empty when a message arrives, run a 
 6. Any ongoing situations worth flagging (visa renewal, company formation, etc.)
 
 Write answers to `user/context.json` matching the schema in `user/context.json.example`. The minimum to get started is location and visa type — everything else can be filled in later. Then confirm what you've learned and let the user know they can update it anytime by just telling you.
+
+Never store credentials, API keys, personal access tokens, SSH keys, OAuth tokens, or other secrets in `user/context.json` or `user/preferences.json`. If the user pastes a secret, tell them to rotate it if exposed, use the approved host/vault tooling instead, and do not write it to persistent user files.
 
 ---
 

@@ -8,6 +8,7 @@
 
 import { execFile } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
 
@@ -24,7 +25,9 @@ interface GithubResult {
 type Visibility = 'public' | 'private' | 'internal';
 
 const REPO_SEGMENT_RE = /^[A-Za-z0-9._-]{1,100}$/;
+const BRANCH_RE = /^[A-Za-z0-9._/-]{1,250}$/;
 const PROTECTED_REPO_NAME = 'tetsuclaw-core';
+const MAX_COMMIT_FILE_BYTES = 1024 * 1024;
 const REPO_JSON_FIELDS = [
   'name',
   'nameWithOwner',
@@ -51,8 +54,27 @@ interface CreateRepoInput {
   addReadme?: boolean;
 }
 
+interface CommitFileInput {
+  repository: string;
+  filePath: string;
+  content: string;
+  message: string;
+  branch?: string;
+}
+
 type ArgsResult =
   | { ok: true; args: string[]; fullName: string; visibility: Visibility }
+  | { ok: false; message: string };
+
+type CommitFileTargetResult =
+  | {
+      ok: true;
+      repo: string;
+      filePath: string;
+      content: string;
+      message: string;
+      branch?: string;
+    }
   | { ok: false; message: string };
 
 function writeResult(
@@ -123,6 +145,57 @@ function normalizeOwnerRepo(value: string): string | null {
   return `${owner}/${repo}`;
 }
 
+function normalizeGithubFilePath(value: string): string | null {
+  const filePath = value.trim();
+  if (!filePath || filePath.startsWith('/') || filePath.includes('\\')) {
+    return null;
+  }
+
+  const parts = filePath.split('/');
+  if (
+    parts.some(
+      (part) => !part || part === '.' || part === '..' || part.includes('\0'),
+    )
+  ) {
+    return null;
+  }
+
+  return parts.join('/');
+}
+
+function isBlockedWritePath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return (
+    lower === '.env' ||
+    lower.startsWith('.env.') ||
+    lower.includes('/.env') ||
+    lower.startsWith('.github/workflows/') ||
+    lower === '.github/workflows' ||
+    lower.startsWith('.git/') ||
+    lower === '.git' ||
+    lower.includes('/.git/') ||
+    /(^|\/)(id_rsa|id_ed25519|private_key|credentials|secrets?)([._/-]|$)/i.test(
+      filePath,
+    )
+  );
+}
+
+function isSafeBranch(value: string): boolean {
+  return (
+    BRANCH_RE.test(value) &&
+    !value.includes('..') &&
+    !value.includes('//') &&
+    !value.startsWith('/') &&
+    !value.endsWith('/') &&
+    !value.endsWith('.lock')
+  );
+}
+
+function githubContentsEndpoint(repo: string, filePath: string): string {
+  const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+  return `repos/${repo}/contents/${encodedPath}`;
+}
+
 export function buildCreateRepoArgs(input: CreateRepoInput): ArgsResult {
   const name = input.name.trim();
   const owner = input.owner?.trim();
@@ -174,6 +247,70 @@ export function buildCreateRepoArgs(input: CreateRepoInput): ArgsResult {
   return { ok: true, args, fullName, visibility };
 }
 
+export function buildCommitFileTarget(
+  input: CommitFileInput,
+): CommitFileTargetResult {
+  const repo = normalizeOwnerRepo(input.repository);
+  if (!repo) {
+    return {
+      ok: false,
+      message: 'Repository must be in owner/name format.',
+    };
+  }
+
+  if (isProtectedTetsuclawCoreRepo(repo)) {
+    return {
+      ok: false,
+      message:
+        'Refusing to write to tetsuclaw-core through Telegram GitHub tools. Use the dedicated maintenance workflow for protected infrastructure.',
+    };
+  }
+
+  const filePath = normalizeGithubFilePath(input.filePath);
+  if (!filePath) {
+    return {
+      ok: false,
+      message:
+        'File path must be a relative repository path without traversal.',
+    };
+  }
+
+  if (isBlockedWritePath(filePath)) {
+    return {
+      ok: false,
+      message:
+        'Refusing to write secrets, git internals, or GitHub Actions workflow files.',
+    };
+  }
+
+  const contentBytes = Buffer.byteLength(input.content, 'utf8');
+  if (contentBytes > MAX_COMMIT_FILE_BYTES) {
+    return {
+      ok: false,
+      message: 'File content is too large for this tool. Limit is 1 MiB.',
+    };
+  }
+
+  const message = input.message.trim();
+  if (!message) {
+    return { ok: false, message: 'Commit message is required.' };
+  }
+
+  const branch = input.branch?.trim();
+  if (branch && !isSafeBranch(branch)) {
+    return { ok: false, message: 'Unsafe branch name.' };
+  }
+
+  return {
+    ok: true,
+    repo,
+    filePath,
+    content: input.content,
+    message,
+    branch,
+  };
+}
+
 async function runGh(
   args: string[],
 ): Promise<{ stdout: string; stderr: string }> {
@@ -197,6 +334,21 @@ async function runGh(
       error.stdout?.toString().trim() ||
       error.message;
     throw new Error(details);
+  }
+}
+
+async function runGhApiWithJsonInput(
+  args: string[],
+  payload: Record<string, unknown>,
+): Promise<{ stdout: string; stderr: string }> {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nanoclaw-gh-'));
+  const inputFile = path.join(tempDir, 'payload.json');
+
+  try {
+    fs.writeFileSync(inputFile, JSON.stringify(payload));
+    return await runGh([...args, '--input', inputFile]);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
@@ -227,6 +379,105 @@ async function handleListRepos(
     success: true,
     message: `Found ${Array.isArray(repos) ? repos.length : 0} repositories.`,
     data: repos,
+  };
+}
+
+async function getExistingFileSha(
+  repo: string,
+  filePath: string,
+  branch?: string,
+): Promise<string | undefined> {
+  const args = ['api', githubContentsEndpoint(repo, filePath), '--jq', '.sha'];
+  if (branch) {
+    args.push('-f', `ref=${branch}`);
+  }
+
+  try {
+    const { stdout } = await runGh(args);
+    return stdout.trim() || undefined;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/not found|http 404/i.test(message)) {
+      return undefined;
+    }
+    throw err;
+  }
+}
+
+async function handleCommitFile(
+  data: Record<string, unknown>,
+): Promise<GithubResult> {
+  const repository = asString(data.repository) ?? asString(data.repo);
+  const filePath = asString(data.path) ?? asString(data.filePath);
+  const content = typeof data.content === 'string' ? data.content : undefined;
+  const message = asString(data.message);
+
+  if (!repository || !filePath || content === undefined || !message) {
+    return {
+      success: false,
+      message: 'Missing repository, path, content, or commit message.',
+    };
+  }
+
+  const target = buildCommitFileTarget({
+    repository,
+    filePath,
+    content,
+    message,
+    branch: asString(data.branch),
+  });
+
+  if (!target.ok) {
+    return { success: false, message: target.message };
+  }
+
+  const sha = await getExistingFileSha(
+    target.repo,
+    target.filePath,
+    target.branch,
+  );
+  const payload: Record<string, unknown> = {
+    message: target.message,
+    content: Buffer.from(target.content, 'utf8').toString('base64'),
+  };
+  if (target.branch) {
+    payload.branch = target.branch;
+  }
+  if (sha) {
+    payload.sha = sha;
+  }
+
+  const { stdout } = await runGhApiWithJsonInput(
+    [
+      'api',
+      '--method',
+      'PUT',
+      githubContentsEndpoint(target.repo, target.filePath),
+    ],
+    payload,
+  );
+  const parsed = JSON.parse(stdout || '{}');
+
+  return {
+    success: true,
+    message: `${sha ? 'Updated' : 'Created'} ${target.filePath} in ${target.repo}.`,
+    data: {
+      repository: target.repo,
+      path: target.filePath,
+      branch: target.branch,
+      commit: parsed.commit
+        ? {
+            sha: parsed.commit.sha,
+            html_url: parsed.commit.html_url,
+          }
+        : undefined,
+      content: parsed.content
+        ? {
+            sha: parsed.content.sha,
+            html_url: parsed.content.html_url,
+          }
+        : undefined,
+    },
   };
 }
 
@@ -365,6 +616,9 @@ export async function handleGithubIpc(
         break;
       case 'github_create_repo':
         result = await handleCreateRepo(data);
+        break;
+      case 'github_commit_file':
+        result = await handleCommitFile(data);
         break;
       default:
         return false;
