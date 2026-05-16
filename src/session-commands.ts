@@ -5,7 +5,18 @@ import { logger } from './logger.js';
  * Extract a session slash command from a message, stripping the trigger prefix if present.
  * Returns the slash command (e.g., '/compact') or null if not a session command.
  */
-const SESSION_COMMANDS = new Set(['/compact', '/capabilities']);
+export const SESSION_COMMANDS = [
+  '/compact',
+  '/capabilities',
+  '/ops-health',
+] as const;
+
+const SESSION_COMMAND_SET = new Set<string>(SESSION_COMMANDS);
+const HOST_SESSION_COMMANDS = new Set<string>(['/ops-health']);
+
+export function isHostSessionCommand(command: string): boolean {
+  return HOST_SESSION_COMMANDS.has(command);
+}
 
 export function extractSessionCommand(
   content: string,
@@ -13,7 +24,7 @@ export function extractSessionCommand(
 ): string | null {
   let text = content.trim();
   text = text.replace(triggerPattern, '').trim();
-  if (SESSION_COMMANDS.has(text)) return text;
+  if (SESSION_COMMAND_SET.has(text)) return text;
   return null;
 }
 
@@ -42,6 +53,7 @@ export interface SessionCommandDeps {
     prompt: string,
     onOutput: (result: AgentResult) => Promise<void>,
   ) => Promise<'success' | 'error'>;
+  runHostCommand?: (command: string) => Promise<string | null>;
   closeStdin: () => void;
   advanceCursor: (timestamp: string) => void;
   formatMessages: (msgs: NewMessage[], timezone: string) => string;
@@ -101,6 +113,23 @@ export async function handleSessionCommand(opts: {
 
   // AUTHORIZED: process pre-compact messages first, then run the command
   logger.info({ group: groupName, command }, 'Session command');
+
+  if (isHostSessionCommand(command) && deps.runHostCommand) {
+    try {
+      const text = await deps.runHostCommand(command);
+      if (text !== null) {
+        await deps.sendMessage(text);
+        deps.advanceCursor(cmdMsg.timestamp);
+        return { handled: true, success: true };
+      }
+    } catch (err) {
+      await deps.sendMessage(
+        `${command} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      deps.advanceCursor(cmdMsg.timestamp);
+      return { handled: true, success: true };
+    }
+  }
 
   const cmdIndex = missedMessages.indexOf(cmdMsg);
   const preCompactMsgs = missedMessages.slice(0, cmdIndex);

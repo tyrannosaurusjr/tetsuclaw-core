@@ -67,9 +67,11 @@ import {
 import {
   extractSessionCommand,
   handleSessionCommand,
+  isHostSessionCommand,
   isSessionCommandAllowed,
 } from './session-commands.js';
 import { startSessionCleanup } from './session-cleanup.js';
+import { formatOpsHealthReport } from './ops-health.js';
 import {
   confirmVaultRequest,
   hasPendingVaultConfirmation,
@@ -330,6 +332,19 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         channel.setTyping?.(chatJid, typing) ?? Promise.resolve(),
       runAgent: (prompt, onOutput) =>
         runAgent(group, prompt, chatJid, [], onOutput),
+      runHostCommand: async (command) => {
+        if (!isHostSessionCommand(command)) return null;
+        return formatOpsHealthReport({
+          registeredGroups,
+          sessions,
+          tasks: getAllTasks(),
+          channels: channels.map((ch) => ({
+            name: ch.name,
+            connected: ch.isConnected(),
+          })),
+          queue: queue.getSnapshot(),
+        });
+      },
       closeStdin: () => queue.closeStdin(chatJid),
       advanceCursor: (ts) => {
         lastAgentTimestamp[chatJid] = ts;

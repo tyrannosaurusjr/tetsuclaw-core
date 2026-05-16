@@ -30,6 +30,10 @@ describe('extractSessionCommand', () => {
     );
   });
 
+  it('detects bare /ops-health', () => {
+    expect(extractSessionCommand('/ops-health', trigger)).toBe('/ops-health');
+  });
+
   it('rejects /compact with extra text', () => {
     expect(extractSessionCommand('/compact now please', trigger)).toBeNull();
   });
@@ -150,6 +154,25 @@ describe('handleSessionCommand', () => {
       '/capabilities',
       expect.any(Function),
     );
+    expect(deps.advanceCursor).toHaveBeenCalledWith('100');
+  });
+
+  it('handles authorized /ops-health on the host without running an agent', async () => {
+    const deps = makeDeps({
+      runHostCommand: vi.fn().mockResolvedValue('ops report'),
+    });
+    const result = await handleSessionCommand({
+      missedMessages: [makeMsg('/ops-health')],
+      isMainGroup: true,
+      groupName: 'test',
+      triggerPattern: trigger,
+      timezone: 'UTC',
+      deps,
+    });
+    expect(result).toEqual({ handled: true, success: true });
+    expect(deps.runHostCommand).toHaveBeenCalledWith('/ops-health');
+    expect(deps.runAgent).not.toHaveBeenCalled();
+    expect(deps.sendMessage).toHaveBeenCalledWith('ops report');
     expect(deps.advanceCursor).toHaveBeenCalledWith('100');
   });
 

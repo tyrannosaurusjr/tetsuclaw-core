@@ -457,6 +457,14 @@ NanoClaw uses a hierarchical memory system based on CLAUDE.md files.
 
 Sessions enable conversation continuity - Claude remembers what you talked about.
 
+### Session Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/compact` | Ask Claude Code to compact the current session transcript. |
+| `/capabilities` | Return the runtime capability manifest. |
+| `/ops-health` | Return a host-generated ops report for service, deploy, queue, IPC, channel, disk, GitHub auth, and secret-pattern health. |
+
 ### How Sessions Work
 
 1. Each group has a session ID stored in SQLite (`sessions` table, keyed by `group_folder`)

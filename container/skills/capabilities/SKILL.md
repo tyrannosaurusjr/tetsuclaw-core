@@ -12,6 +12,10 @@ normal language, use `mcp__nanoclaw__capabilities_status` as the source of
 truth before answering. Do not maintain a handwritten MCP tool list in the
 response.
 
+For operational health, `/ops-health` is answered by the NanoClaw host process
+before model work starts. It reports service, deploy, queue, IPC, channel, disk,
+GitHub auth, and secret-pattern health.
+
 ## How to gather the information
 
 Prefer the runtime manifest:

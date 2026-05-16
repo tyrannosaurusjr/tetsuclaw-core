@@ -21,7 +21,11 @@ export interface CapabilityReportOptions {
   gmailAuthAvailable?: boolean;
 }
 
-export const SESSION_COMMANDS = ['/compact', '/capabilities'] as const;
+export const SESSION_COMMANDS = [
+  '/compact',
+  '/capabilities',
+  '/ops-health',
+] as const;
 
 export const MCP_CAPABILITIES: CapabilityDefinition[] = [
   {
