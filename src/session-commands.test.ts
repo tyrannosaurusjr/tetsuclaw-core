@@ -18,6 +18,18 @@ describe('extractSessionCommand', () => {
     expect(extractSessionCommand('@Andy /compact', trigger)).toBe('/compact');
   });
 
+  it('detects bare /capabilities', () => {
+    expect(extractSessionCommand('/capabilities', trigger)).toBe(
+      '/capabilities',
+    );
+  });
+
+  it('detects /capabilities with trigger prefix', () => {
+    expect(extractSessionCommand('@Andy /capabilities', trigger)).toBe(
+      '/capabilities',
+    );
+  });
+
   it('rejects /compact with extra text', () => {
     expect(extractSessionCommand('/compact now please', trigger)).toBeNull();
   });
@@ -118,6 +130,24 @@ describe('handleSessionCommand', () => {
     expect(result).toEqual({ handled: true, success: true });
     expect(deps.runAgent).toHaveBeenCalledWith(
       '/compact',
+      expect.any(Function),
+    );
+    expect(deps.advanceCursor).toHaveBeenCalledWith('100');
+  });
+
+  it('handles authorized /capabilities in main group', async () => {
+    const deps = makeDeps();
+    const result = await handleSessionCommand({
+      missedMessages: [makeMsg('/capabilities')],
+      isMainGroup: true,
+      groupName: 'test',
+      triggerPattern: trigger,
+      timezone: 'UTC',
+      deps,
+    });
+    expect(result).toEqual({ handled: true, success: true });
+    expect(deps.runAgent).toHaveBeenCalledWith(
+      '/capabilities',
       expect.any(Function),
     );
     expect(deps.advanceCursor).toHaveBeenCalledWith('100');

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
+import { formatCapabilitiesReport } from './capabilities.js';
 
 const IPC_DIR = '/workspace/ipc';
 const MESSAGES_DIR = path.join(IPC_DIR, 'messages');
@@ -41,6 +42,29 @@ const server = new McpServer({
   name: 'nanoclaw',
   version: '1.0.0',
 });
+
+server.tool(
+  'capabilities_status',
+  'Report current built-in TetsuClaw capabilities, scopes, and guardrails from the runtime manifest. Use before telling the user a capability is unavailable.',
+  {
+    include_tool_names: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include concrete MCP tool names in the report.'),
+  },
+  async (args) => ({
+    content: [
+      {
+        type: 'text' as const,
+        text: formatCapabilitiesReport({
+          isMain,
+          groupFolder,
+          includeToolNames: args.include_tool_names,
+        }),
+      },
+    ],
+  }),
+);
 
 server.tool(
   'send_message',

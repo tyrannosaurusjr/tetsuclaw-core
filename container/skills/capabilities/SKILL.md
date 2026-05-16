@@ -6,22 +6,22 @@ description: Show what this NanoClaw instance can do — installed skills, avail
 # /capabilities — System Capabilities Report
 
 Generate a structured read-only report of what this NanoClaw instance can do.
-
-**Main-channel check:** Only the main channel has `/workspace/project` mounted. Run:
-
-```bash
-test -d /workspace/project && echo "MAIN" || echo "NOT_MAIN"
-```
-
-If `NOT_MAIN`, respond with:
-
-> This command is available in your main chat only. Send `/capabilities` there to see what I can do.
-
-Then stop — do not generate the report.
+The literal `/capabilities` session command is normally intercepted by the
+agent runner and answered from the built-in runtime manifest. If a user asks in
+normal language, use `mcp__nanoclaw__capabilities_status` as the source of
+truth before answering. Do not maintain a handwritten MCP tool list in the
+response.
 
 ## How to gather the information
 
-Run these commands and compile the results into the report format below.
+Prefer the runtime manifest:
+
+```text
+mcp__nanoclaw__capabilities_status
+```
+
+Then optionally add local context from the checks below if the user needs more
+detail about installed skills or filesystem mounts.
 
 ### 1. Installed skills
 
@@ -33,38 +33,7 @@ ls -1 /home/node/.claude/skills/ 2>/dev/null || echo "No skills found"
 
 Each directory is an installed skill. The directory name is the skill name (e.g., `agent-browser` → `/agent-browser`).
 
-### 2. Available tools
-
-Read the allowed tools from your SDK configuration. You always have access to:
-
-- **Core:** Bash, Read, Write, Edit, Glob, Grep
-- **Web:** WebSearch, WebFetch
-- **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **Other:** TodoWrite, ToolSearch, Skill, NotebookEdit
-- **MCP:** mcp**nanoclaw**\* (messaging, tasks, group management, GitHub, model providers, X)
-
-### 3. MCP server tools
-
-The NanoClaw MCP server exposes these tools (via `mcp__nanoclaw__*` prefix):
-
-- `send_message` — send a message to the user/group
-- `schedule_task` — schedule a recurring or one-time task
-- `list_tasks` — list scheduled tasks
-- `pause_task` — pause a scheduled task
-- `resume_task` — resume a paused task
-- `cancel_task` — cancel and delete a task
-- `update_task` — update an existing task
-- `refresh_groups` — refresh the consolidated chat/group list (main only)
-- `register_group` — register a new chat/group (main only)
-- `github_list_repos` — list GitHub repositories available to the host account (main only)
-- `github_view_repo` — inspect repository metadata (main only)
-- `github_create_repo` — create a new repository, private by default; refuses `tetsuclaw-core` (main only)
-- `github_commit_file` — create or update one text file in a non-protected repository after an explicit user request; refuses `tetsuclaw-core`, secrets, git internals, and GitHub Actions workflows (main only)
-- `model_status` — check host-mediated Codex/OpenAI, Gemini, Ollama, and Claude availability (main only)
-- `model_ask` — ask Codex/OpenAI, Gemini, Ollama, or Claude for a second opinion via host-mediated credentials (main only)
-- `x_post`, `x_like`, `x_reply`, `x_retweet`, `x_quote` — X/Twitter actions (main only)
-
-### 4. Container skills (Bash tools)
+### 2. Container skills (Bash tools)
 
 Check for executable tools in the container:
 
@@ -72,7 +41,7 @@ Check for executable tools in the container:
 which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agent-browser: not found"
 ```
 
-### 5. Group info
+### 3. Group info
 
 ```bash
 ls /workspace/group/CLAUDE.md 2>/dev/null && echo "Group memory: yes" || echo "Group memory: no"
@@ -81,31 +50,8 @@ ls /workspace/extra/ 2>/dev/null && echo "Extra mounts: $(ls /workspace/extra/ 2
 
 ## Report format
 
-Present the report as a clean, readable message. Example:
-
-```
-📋 *NanoClaw Capabilities*
-
-*Installed Skills:*
-• /agent-browser — Browse the web, fill forms, extract data
-• /capabilities — This report
-(list all found skills)
-
-*Tools:*
-• Core: Bash, Read, Write, Edit, Glob, Grep
-• Web: WebSearch, WebFetch
-• Orchestration: Task, TeamCreate, SendMessage
-• MCP: send_message, schedule_task, list_tasks, pause/resume/cancel/update_task, refresh_groups, register_group, GitHub tools, model provider tools
-
-*Container Tools:*
-• agent-browser: ✓
-
-*System:*
-• Group memory: yes/no
-• Extra mounts: N directories
-• Main channel: yes
-```
-
-Adapt the output based on what you actually find — don't list things that aren't installed.
+Present the runtime manifest first, then add any optional local checks the user
+asked for. Adapt the output based on what you actually find; don't list things
+that aren't installed.
 
 **See also:** `/status` for a quick health check of session, workspace, and tasks.

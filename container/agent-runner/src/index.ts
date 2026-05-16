@@ -24,6 +24,7 @@ import {
 } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 import { resolveClaudeCodeExecutable } from './claude-executable.js';
+import { formatCapabilitiesReport, SESSION_COMMANDS } from './capabilities.js';
 import { createStopCleanupHook } from './stop-cleanup.js';
 
 interface ContainerInput {
@@ -751,11 +752,23 @@ async function main(): Promise<void> {
   // --- Slash command handling ---
   // Only known session slash commands are handled here. This prevents
   // accidental interception of user prompts that happen to start with '/'.
-  const KNOWN_SESSION_COMMANDS = new Set(['/compact']);
+  const KNOWN_SESSION_COMMANDS = new Set<string>(SESSION_COMMANDS);
   const trimmedPrompt = prompt.trim();
   const isSessionSlashCommand = KNOWN_SESSION_COMMANDS.has(trimmedPrompt);
 
   if (isSessionSlashCommand) {
+    if (trimmedPrompt === '/capabilities') {
+      writeOutput({
+        status: 'success',
+        result: formatCapabilitiesReport({
+          isMain: containerInput.isMain,
+          groupFolder: containerInput.groupFolder,
+        }),
+        newSessionId: sessionId,
+      });
+      return;
+    }
+
     log(`Handling session command: ${trimmedPrompt}`);
     let slashSessionId: string | undefined;
     let compactBoundarySeen = false;

@@ -623,20 +623,31 @@ The `nanoclaw` MCP server is created dynamically per agent call with the current
 **Available Tools:**
 | Tool | Purpose |
 |------|---------|
+| `capabilities_status` | Report current built-in capabilities, scopes, and guardrails |
+| `send_message` | Send a message to the group via its channel |
+| `react_to_message` | React to a message in the current chat |
 | `schedule_task` | Schedule a recurring or one-time task |
 | `list_tasks` | Show tasks (group's tasks, or all if main) |
-| `get_task` | Get task details and run history |
 | `update_task` | Modify task prompt or schedule |
 | `pause_task` | Pause a task |
 | `resume_task` | Resume a paused task |
 | `cancel_task` | Delete a task |
-| `send_message` | Send a message to the group via its channel |
+| `refresh_groups` | Refresh the consolidated chat/group list (main only) |
+| `register_group` | Register a new chat/group (main only) |
+| `github_list_repos` | List GitHub repositories available to the host account (main only) |
+| `github_view_repo` | Inspect repository metadata (main only) |
+| `github_create_repo` | Create a private-by-default repository; refuses `tetsuclaw-core` (main only) |
+| `github_commit_file` | Create/update one text file in a non-protected repository after explicit user request (main only) |
+| `model_status` | Check host-mediated model provider availability (main only) |
+| `model_ask` | Ask a host-mediated model provider for a second opinion (main only) |
+| `x_post`, `x_like`, `x_reply`, `x_retweet`, `x_quote` | X/Twitter actions (main only) |
 
 ---
 
 ## Deployment
 
-NanoClaw runs as a single macOS launchd service.
+NanoClaw can run as a macOS launchd service or a Linux systemd service. The
+live TetsuClaw deployment runs as `nanoclaw.service` on the Linux droplet.
 
 ### Startup Sequence
 
@@ -652,7 +663,7 @@ When NanoClaw starts, it:
    - Recovers any unprocessed messages from before shutdown
    - Starts the message polling loop
 
-### Service: com.nanoclaw
+### macOS Service: com.nanoclaw
 
 **launchd/com.nanoclaw.plist:**
 ```xml
@@ -690,7 +701,7 @@ When NanoClaw starts, it:
 </plist>
 ```
 
-### Managing the Service
+### Managing the macOS Service
 
 ```bash
 # Install service
@@ -707,6 +718,19 @@ launchctl list | grep nanoclaw
 
 # View logs
 tail -f logs/nanoclaw.log
+```
+
+### Managing the Linux Service
+
+```bash
+# Check live service state
+systemctl is-active nanoclaw
+
+# Restart after deploy
+systemctl restart nanoclaw
+
+# View recent logs without printing process environment
+journalctl -u nanoclaw -n 100 --no-pager
 ```
 
 ---
