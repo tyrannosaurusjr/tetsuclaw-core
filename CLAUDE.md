@@ -333,10 +333,14 @@ Do NOT build:
 - Each referral generates revenue
 - Solo operator can run a real Japan business without a single Japanese corporate contract
 
-
 ## Failure Visibility
 
 This project follows the no-silent-failures rules in `~/Desktop/Projects/tyrannojr-github/project-rules/NO-SILENT-FAILURES.md`. If something goes wrong, the code must say so loudly — no swallowed exceptions, no masked exit codes, no silent fallbacks, no disabled tests without a tracked reason.
 
 ## Cross-Project Reference
+
 See ~/Desktop/Projects/tyrannojr-github/project-rules/ for shared patterns, known pitfalls, and reusable modules across all tyrannosaurusjr projects. Check PROJECT-MAP.md before building something that may already exist in another repo.
+
+## Canonical Project Memory
+
+This `tetsuclaw-core/CLAUDE.md` file is the canonical project memory for active Tetsuclaw work. The archived `~/Desktop/Projects/tyrannojr-github/_archive/tetsuclaw/CLAUDE.md` file is historical context only; do not treat it as a parallel source of truth. If archived Tetsuclaw code is revived, port any still-relevant intent into this file explicitly instead of trying to keep both files synchronized.
