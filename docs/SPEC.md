@@ -642,6 +642,10 @@ The `nanoclaw` MCP server is created dynamically per agent call with the current
 | `model_ask` | Ask a host-mediated model provider for a second opinion (main only) |
 | `x_post`, `x_like`, `x_reply`, `x_retweet`, `x_quote` | X/Twitter actions (main only) |
 
+GitHub authentication is host-mediated. Agents must not ask users for GitHub
+PATs, read or write `github_pat` in user memory, or fall back to Bash/curl with
+user tokens when a GitHub MCP call fails.
+
 ---
 
 ## Deployment

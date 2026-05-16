@@ -159,12 +159,39 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
 \u2022 interval: Milliseconds between runs (e.g., "300000" for 5 minutes, "3600000" for 1 hour)
 \u2022 once: Local time WITHOUT "Z" suffix (e.g., "2026-02-01T15:30:00"). Do NOT use UTC/Z suffix.`,
   {
-    prompt: z.string().describe('What the agent should do when the task runs. For isolated mode, include all necessary context here.'),
-    schedule_type: z.enum(['cron', 'interval', 'once']).describe('cron=recurring at specific times, interval=recurring every N ms, once=run once at specific time'),
-    schedule_value: z.string().describe('cron: "*/5 * * * *" | interval: milliseconds like "300000" | once: local timestamp like "2026-02-01T15:30:00" (no Z suffix!)'),
-    context_mode: z.enum(['group', 'isolated']).default('group').describe('group=runs with chat history and memory, isolated=fresh session (include context in prompt)'),
-    target_group_jid: z.string().optional().describe('(Main group only) JID of the group to schedule the task for. Defaults to the current group.'),
-    script: z.string().optional().describe('Optional bash script to run before waking the agent. Script must output JSON on the last line of stdout: { "wakeAgent": boolean, "data"?: any }. If wakeAgent is false, the agent is not called. Test your script with bash -c "..." before scheduling.'),
+    prompt: z
+      .string()
+      .describe(
+        'What the agent should do when the task runs. For isolated mode, include all necessary context here.',
+      ),
+    schedule_type: z
+      .enum(['cron', 'interval', 'once'])
+      .describe(
+        'cron=recurring at specific times, interval=recurring every N ms, once=run once at specific time',
+      ),
+    schedule_value: z
+      .string()
+      .describe(
+        'cron: "*/5 * * * *" | interval: milliseconds like "300000" | once: local timestamp like "2026-02-01T15:30:00" (no Z suffix!)',
+      ),
+    context_mode: z
+      .enum(['group', 'isolated'])
+      .default('group')
+      .describe(
+        'group=runs with chat history and memory, isolated=fresh session (include context in prompt)',
+      ),
+    target_group_jid: z
+      .string()
+      .optional()
+      .describe(
+        '(Main group only) JID of the group to schedule the task for. Defaults to the current group.',
+      ),
+    script: z
+      .string()
+      .optional()
+      .describe(
+        'Optional bash script to run before waking the agent. Script must output JSON on the last line of stdout: { "wakeAgent": boolean, "data"?: any }. If wakeAgent is false, the agent is not called. Test your script with bash -c "..." before scheduling.',
+      ),
   },
   async (args) => {
     // Validate schedule_value before writing IPC
@@ -384,7 +411,14 @@ server.tool(
 
     writeIpcFile(TASKS_DIR, data);
 
-    return { content: [{ type: 'text' as const, text: `Task ${args.task_id} cancellation requested.` }] };
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Task ${args.task_id} cancellation requested.`,
+        },
+      ],
+    };
   },
 );
 
@@ -394,19 +428,38 @@ server.tool(
   {
     task_id: z.string().describe('The task ID to update'),
     prompt: z.string().optional().describe('New prompt for the task'),
-    schedule_type: z.enum(['cron', 'interval', 'once']).optional().describe('New schedule type'),
-    schedule_value: z.string().optional().describe('New schedule value (see schedule_task for format)'),
-    script: z.string().optional().describe('New script for the task. Set to empty string to remove the script.'),
+    schedule_type: z
+      .enum(['cron', 'interval', 'once'])
+      .optional()
+      .describe('New schedule type'),
+    schedule_value: z
+      .string()
+      .optional()
+      .describe('New schedule value (see schedule_task for format)'),
+    script: z
+      .string()
+      .optional()
+      .describe(
+        'New script for the task. Set to empty string to remove the script.',
+      ),
   },
   async (args) => {
     // Validate schedule_value if provided
-    if (args.schedule_type === 'cron' || (!args.schedule_type && args.schedule_value)) {
+    if (
+      args.schedule_type === 'cron' ||
+      (!args.schedule_type && args.schedule_value)
+    ) {
       if (args.schedule_value) {
         try {
           CronExpressionParser.parse(args.schedule_value);
         } catch {
           return {
-            content: [{ type: 'text' as const, text: `Invalid cron: "${args.schedule_value}".` }],
+            content: [
+              {
+                type: 'text' as const,
+                text: `Invalid cron: "${args.schedule_value}".`,
+              },
+            ],
             isError: true,
           };
         }
@@ -416,7 +469,12 @@ server.tool(
       const ms = parseInt(args.schedule_value, 10);
       if (isNaN(ms) || ms <= 0) {
         return {
-          content: [{ type: 'text' as const, text: `Invalid interval: "${args.schedule_value}".` }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `Invalid interval: "${args.schedule_value}".`,
+            },
+          ],
           isError: true,
         };
       }
@@ -431,12 +489,21 @@ server.tool(
     };
     if (args.prompt !== undefined) data.prompt = args.prompt;
     if (args.script !== undefined) data.script = args.script;
-    if (args.schedule_type !== undefined) data.schedule_type = args.schedule_type;
-    if (args.schedule_value !== undefined) data.schedule_value = args.schedule_value;
+    if (args.schedule_type !== undefined)
+      data.schedule_type = args.schedule_type;
+    if (args.schedule_value !== undefined)
+      data.schedule_value = args.schedule_value;
 
     writeIpcFile(TASKS_DIR, data);
 
-    return { content: [{ type: 'text' as const, text: `Task ${args.task_id} update requested.` }] };
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Task ${args.task_id} update requested.`,
+        },
+      ],
+    };
   },
 );
 
@@ -539,23 +606,56 @@ async function waitForGithubResult(
   requestId: string,
   maxWait = 60000,
 ): Promise<IpcToolResult> {
-  const resultFile = path.join(GITHUB_RESULTS_DIR, `${requestId}.json`);
+  return waitForIpcResult(GITHUB_RESULTS_DIR, requestId, maxWait, {
+    timeout:
+      'GitHub IPC request timed out. This is a host integration error, not a request for user credentials.',
+    readFailure:
+      'GitHub IPC result was unreadable after retrying. This is a host integration error, not a request for user credentials.',
+  });
+}
+
+async function waitForIpcResult(
+  resultsDir: string,
+  requestId: string,
+  maxWait: number,
+  messages?: { timeout?: string; readFailure?: string },
+): Promise<IpcToolResult> {
+  const resultFile = path.join(resultsDir, `${requestId}.json`);
   const pollInterval = 1000;
   let elapsed = 0;
+  let lastReadError: string | undefined;
+
   while (elapsed < maxWait) {
     if (fs.existsSync(resultFile)) {
       try {
-        const result = JSON.parse(fs.readFileSync(resultFile, 'utf-8'));
-        fs.unlinkSync(resultFile);
+        const result = JSON.parse(
+          fs.readFileSync(resultFile, 'utf-8'),
+        ) as IpcToolResult;
+        try {
+          fs.unlinkSync(resultFile);
+        } catch {
+          // The host result has already been consumed; stale cleanup is best-effort.
+        }
         return result;
-      } catch {
-        return { success: false, message: 'Failed to read result' };
+      } catch (err) {
+        lastReadError = err instanceof Error ? err.message : String(err);
       }
     }
     await new Promise((r) => setTimeout(r, pollInterval));
     elapsed += pollInterval;
   }
-  return { success: false, message: 'Request timed out' };
+
+  if (lastReadError) {
+    return {
+      success: false,
+      message: `${messages?.readFailure || 'IPC result was unreadable after retrying'}: ${lastReadError}`,
+    };
+  }
+
+  return {
+    success: false,
+    message: messages?.timeout || 'Request timed out',
+  };
 }
 
 function formatIpcResult(result: IpcToolResult): string {
@@ -567,7 +667,7 @@ function formatIpcResult(result: IpcToolResult): string {
 
 server.tool(
   'github_list_repos',
-  'List GitHub repositories available to the authenticated host account. Main group only.',
+  'List GitHub repositories available to the authenticated host account. Main group only. Uses host-mediated auth; never ask the user for a GitHub PAT or read tokens from context.json.',
   {
     owner: z
       .string()
@@ -620,7 +720,7 @@ server.tool(
 
 server.tool(
   'github_view_repo',
-  'View GitHub repository metadata. Main group only. Use owner/name or a github.com URL.',
+  'View GitHub repository metadata. Main group only. Use owner/name or a github.com URL. Uses host-mediated auth; never ask the user for a GitHub PAT or read tokens from context.json.',
   {
     repository: z
       .string()
@@ -657,7 +757,7 @@ server.tool(
 
 server.tool(
   'github_create_repo',
-  'Create a new GitHub repository with the host account. Main group only. Use only after the user explicitly asks to create a repo. Defaults to private. Refuses tetsuclaw-core.',
+  'Create a new GitHub repository with the host account. Main group only. Use only after the user explicitly asks to create a repo. Defaults to private. Refuses tetsuclaw-core. Uses host-mediated auth; never ask the user for a GitHub PAT or read tokens from context.json.',
   {
     name: z
       .string()
@@ -743,14 +843,18 @@ server.tool(
 
 server.tool(
   'github_commit_file',
-  'Create or update one text file in a GitHub repository using the host account. Main group only. Use only after the user explicitly asks for a GitHub write. Refuses tetsuclaw-core, secrets, git internals, and GitHub Actions workflows.',
+  'Create or update one text file in a GitHub repository using the host account. Main group only. Use only after the user explicitly asks for a GitHub write. Refuses tetsuclaw-core, secrets, git internals, and GitHub Actions workflows. Uses host-mediated auth; never ask the user for a GitHub PAT or read tokens from context.json.',
   {
     repository: z
       .string()
-      .describe('Repository in owner/name format, e.g. tyrannosaurusjr/jacamp.'),
+      .describe(
+        'Repository in owner/name format, e.g. tyrannosaurusjr/jacamp.',
+      ),
     path: z
       .string()
-      .describe('Relative file path inside the repository, e.g. docs/notes.md.'),
+      .describe(
+        'Relative file path inside the repository, e.g. docs/notes.md.',
+      ),
     content: z
       .string()
       .max(1024 * 1024)
@@ -815,23 +919,10 @@ async function waitForModelResult(
   requestId: string,
   maxWait = 180000,
 ): Promise<IpcToolResult> {
-  const resultFile = path.join(MODEL_RESULTS_DIR, `${requestId}.json`);
-  const pollInterval = 1000;
-  let elapsed = 0;
-  while (elapsed < maxWait) {
-    if (fs.existsSync(resultFile)) {
-      try {
-        const result = JSON.parse(fs.readFileSync(resultFile, 'utf-8'));
-        fs.unlinkSync(resultFile);
-        return result;
-      } catch {
-        return { success: false, message: 'Failed to read result' };
-      }
-    }
-    await new Promise((r) => setTimeout(r, pollInterval));
-    elapsed += pollInterval;
-  }
-  return { success: false, message: 'Request timed out' };
+  return waitForIpcResult(MODEL_RESULTS_DIR, requestId, maxWait, {
+    timeout: 'Model provider IPC request timed out.',
+    readFailure: 'Model provider IPC result was unreadable after retrying',
+  });
 }
 
 const modelProviderSchema = z
@@ -936,49 +1027,81 @@ server.tool(
 );
 
 // X integration tools (main group only)
-async function waitForXResult(requestId: string, maxWait = 60000): Promise<{ success: boolean; message: string }> {
-  const resultFile = path.join(X_RESULTS_DIR, `${requestId}.json`);
-  const pollInterval = 1000;
-  let elapsed = 0;
-  while (elapsed < maxWait) {
-    if (fs.existsSync(resultFile)) {
-      try {
-        const result = JSON.parse(fs.readFileSync(resultFile, 'utf-8'));
-        fs.unlinkSync(resultFile);
-        return result;
-      } catch {
-        return { success: false, message: 'Failed to read result' };
-      }
-    }
-    await new Promise((r) => setTimeout(r, pollInterval));
-    elapsed += pollInterval;
-  }
-  return { success: false, message: 'Request timed out' };
+async function waitForXResult(
+  requestId: string,
+  maxWait = 60000,
+): Promise<IpcToolResult> {
+  return waitForIpcResult(X_RESULTS_DIR, requestId, maxWait, {
+    timeout: 'X IPC request timed out.',
+    readFailure: 'X IPC result was unreadable after retrying',
+  });
 }
 
 server.tool(
   'x_post',
   'Post a tweet to X (Twitter). Main group only.',
-  { content: z.string().max(280).describe('Tweet content (max 280 characters)') },
+  {
+    content: z.string().max(280).describe('Tweet content (max 280 characters)'),
+  },
   async (args) => {
-    if (!isMain) return { content: [{ type: 'text' as const, text: 'Only the main group can post tweets.' }], isError: true };
+    if (!isMain)
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can post tweets.',
+          },
+        ],
+        isError: true,
+      };
     const requestId = `xpost-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    writeIpcFile(TASKS_DIR, { type: 'x_post', requestId, content: args.content, groupFolder, timestamp: new Date().toISOString() });
+    writeIpcFile(TASKS_DIR, {
+      type: 'x_post',
+      requestId,
+      content: args.content,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
     const result = await waitForXResult(requestId);
-    return { content: [{ type: 'text' as const, text: result.message }], isError: !result.success };
+    return {
+      content: [{ type: 'text' as const, text: result.message }],
+      isError: !result.success,
+    };
   },
 );
 
 server.tool(
   'x_like',
   'Like a tweet on X (Twitter). Main group only.',
-  { tweet_url: z.string().describe('Tweet URL (e.g., https://x.com/user/status/123)') },
+  {
+    tweet_url: z
+      .string()
+      .describe('Tweet URL (e.g., https://x.com/user/status/123)'),
+  },
   async (args) => {
-    if (!isMain) return { content: [{ type: 'text' as const, text: 'Only the main group can interact with X.' }], isError: true };
+    if (!isMain)
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can interact with X.',
+          },
+        ],
+        isError: true,
+      };
     const requestId = `xlike-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    writeIpcFile(TASKS_DIR, { type: 'x_like', requestId, tweetUrl: args.tweet_url, groupFolder, timestamp: new Date().toISOString() });
+    writeIpcFile(TASKS_DIR, {
+      type: 'x_like',
+      requestId,
+      tweetUrl: args.tweet_url,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
     const result = await waitForXResult(requestId);
-    return { content: [{ type: 'text' as const, text: result.message }], isError: !result.success };
+    return {
+      content: [{ type: 'text' as const, text: result.message }],
+      isError: !result.success,
+    };
   },
 );
 
@@ -990,11 +1113,30 @@ server.tool(
     content: z.string().max(280).describe('Reply content (max 280 characters)'),
   },
   async (args) => {
-    if (!isMain) return { content: [{ type: 'text' as const, text: 'Only the main group can interact with X.' }], isError: true };
+    if (!isMain)
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can interact with X.',
+          },
+        ],
+        isError: true,
+      };
     const requestId = `xreply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    writeIpcFile(TASKS_DIR, { type: 'x_reply', requestId, tweetUrl: args.tweet_url, content: args.content, groupFolder, timestamp: new Date().toISOString() });
+    writeIpcFile(TASKS_DIR, {
+      type: 'x_reply',
+      requestId,
+      tweetUrl: args.tweet_url,
+      content: args.content,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
     const result = await waitForXResult(requestId);
-    return { content: [{ type: 'text' as const, text: result.message }], isError: !result.success };
+    return {
+      content: [{ type: 'text' as const, text: result.message }],
+      isError: !result.success,
+    };
   },
 );
 
@@ -1003,11 +1145,29 @@ server.tool(
   'Retweet a tweet on X (Twitter). Main group only.',
   { tweet_url: z.string().describe('Tweet URL') },
   async (args) => {
-    if (!isMain) return { content: [{ type: 'text' as const, text: 'Only the main group can interact with X.' }], isError: true };
+    if (!isMain)
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can interact with X.',
+          },
+        ],
+        isError: true,
+      };
     const requestId = `xretweet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    writeIpcFile(TASKS_DIR, { type: 'x_retweet', requestId, tweetUrl: args.tweet_url, groupFolder, timestamp: new Date().toISOString() });
+    writeIpcFile(TASKS_DIR, {
+      type: 'x_retweet',
+      requestId,
+      tweetUrl: args.tweet_url,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
     const result = await waitForXResult(requestId);
-    return { content: [{ type: 'text' as const, text: result.message }], isError: !result.success };
+    return {
+      content: [{ type: 'text' as const, text: result.message }],
+      isError: !result.success,
+    };
   },
 );
 
@@ -1019,11 +1179,30 @@ server.tool(
     comment: z.string().max(280).describe('Your comment (max 280 characters)'),
   },
   async (args) => {
-    if (!isMain) return { content: [{ type: 'text' as const, text: 'Only the main group can interact with X.' }], isError: true };
+    if (!isMain)
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group can interact with X.',
+          },
+        ],
+        isError: true,
+      };
     const requestId = `xquote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    writeIpcFile(TASKS_DIR, { type: 'x_quote', requestId, tweetUrl: args.tweet_url, comment: args.comment, groupFolder, timestamp: new Date().toISOString() });
+    writeIpcFile(TASKS_DIR, {
+      type: 'x_quote',
+      requestId,
+      tweetUrl: args.tweet_url,
+      comment: args.comment,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
     const result = await waitForXResult(requestId);
-    return { content: [{ type: 'text' as const, text: result.message }], isError: !result.success };
+    return {
+      content: [{ type: 'text' as const, text: result.message }],
+      isError: !result.success,
+    };
   },
 );
 

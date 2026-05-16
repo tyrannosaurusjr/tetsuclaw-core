@@ -85,10 +85,10 @@ function writeResult(
 ): void {
   const resultsDir = path.join(dataDir, 'ipc', sourceGroup, 'github_results');
   fs.mkdirSync(resultsDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(resultsDir, `${requestId}.json`),
-    JSON.stringify(result),
-  );
+  const resultPath = path.join(resultsDir, `${requestId}.json`);
+  const tempPath = `${resultPath}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(tempPath, JSON.stringify(result));
+  fs.renameSync(tempPath, resultPath);
 }
 
 function asString(value: unknown): string | undefined {

@@ -23,6 +23,11 @@ mcp__nanoclaw__capabilities_status
 Then optionally add local context from the checks below if the user needs more
 detail about installed skills or filesystem mounts.
 
+For GitHub capability questions, rely on the runtime manifest and NanoClaw
+GitHub MCP tools. GitHub auth is host-mediated: never ask the user for a PAT,
+never read or write `github_pat` in `user/context.json`, and report MCP errors
+as host integration errors instead of credential requests.
+
 ### 1. Installed skills
 
 List skill directories available to you:

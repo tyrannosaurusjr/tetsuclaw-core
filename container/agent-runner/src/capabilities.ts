@@ -113,14 +113,14 @@ export const MCP_CAPABILITIES: CapabilityDefinition[] = [
     category: 'GitHub',
     scope: 'main',
     risk: 'read',
-    summary: 'List repositories visible to the authenticated host account.',
+    summary: 'List repositories visible through host-mediated GitHub auth.',
   },
   {
     name: 'github_view_repo',
     category: 'GitHub',
     scope: 'main',
     risk: 'read',
-    summary: 'Inspect repository metadata by owner/name or GitHub URL.',
+    summary: 'Inspect repository metadata through host-mediated GitHub auth.',
   },
   {
     name: 'github_create_repo',
@@ -326,6 +326,9 @@ export function formatCapabilitiesReport(
   lines.push('Guardrails:');
   lines.push(
     '- GitHub writes require an explicit user request and are limited to single text-file commits.',
+  );
+  lines.push(
+    '- GitHub auth is host-mediated; never request, read, or store user PATs.',
   );
   lines.push(
     '- GitHub writes refuse tetsuclaw-core, secrets, .git internals, and GitHub Actions workflows.',
