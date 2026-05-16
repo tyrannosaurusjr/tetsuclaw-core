@@ -160,7 +160,7 @@ function countSecretPatternFiles(
 ): { text: string; warn: boolean } {
   const runner = runCommand || defaultRunCommand;
   const pattern =
-    '(github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]{20,}|[0-9]{6,}:[A-Za-z0-9_-]{30,}|sk-[A-Za-z0-9_-]{20,})';
+    '(^|[^A-Za-z0-9_])(github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]{20,}|[0-9]{6,}:[A-Za-z0-9_-]{30,}|sk-[A-Za-z0-9_-]{20,})([^A-Za-z0-9_-]|$)';
   const targets = ['groups', 'data/sessions', 'data/ipc'].filter((target) =>
     fs.existsSync(path.join(projectRoot, target)),
   );
